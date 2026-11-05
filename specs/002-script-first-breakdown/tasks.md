@@ -381,7 +381,7 @@ verbatim.
   - `apps/web/src/components/NewProjectDialog.tsx` routes to `/projects/{id}/script`, and to
     `/projects/{id}` for "Start with an empty timeline";
   - `apps/web/src/lib/api.ts` gets typed client functions for every new route in this story.
-- [ ] T028 [P] [US1] Write `apps/web/src/hooks/useScript.ts`: load the script, autosave the text
+- [X] T028 [P] [US1] Write `apps/web/src/hooks/useScript.ts`: load the script, autosave the text
   and settings about 800 ms after the last change with `baseRevision`, and on 409 refetch and
   show "changed elsewhere". It also returns a `saving|saved|error` state.
 - [ ] T029 [P] [US1] Write the script components in `apps/web/src/components/script/`:
