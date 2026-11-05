@@ -411,7 +411,7 @@ verbatim.
     camera, action with mentions as chips through `tokensToLabels`, the lines with speaker,
     sound and visual);
   - `FlagsPanel.tsx`, which lists the flags; clicking one scrolls to its path.
-- [ ] T033 [US1] Write the breakdown page
+- [X] T033 [US1] Write the breakdown page
   `apps/web/src/app/projects/[projectId]/breakdown/page.tsx`. It loads the current version, shows
   BreakdownProgress while RUNNING, then SynopsisPanel, AssetBible, EpisodeTree and FlagsPanel,
   read-only in this story. If `maxSensibleEpisodes` is less than the request, it shows the
