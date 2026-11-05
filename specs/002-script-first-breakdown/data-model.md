@@ -64,7 +64,7 @@ Constraints:
 | `status` | `BreakdownStatus` | See the state machine below |
 | `sourceText` | `String` | Script snapshot at start, so later script edits don't change this version |
 | `sourceLines` | `Json` | `SourceLine[]` from the parser (R2) |
-| `settings` | `Json` | `{ aspectRatio, episodeSeconds, episodeCount, fps: 30 }` snapshot |
+| `settings` | `Json` | `{ aspectRatio, episodeSeconds, episodeCount, fps: 30 }` snapshot. After the analyze pass the worker adds `analysis: { speakerMap, maxSensibleEpisodes }`, which episode retries and the review screen read |
 | `document` | `Json` | `BreakdownDocument` (§2), validated on every write |
 | `revision` | `Int` default 0 | Optimistic lock for review autosave (FR-021) |
 | `jobId` | `String?` → `Job` (SetNull) | Last breakdown job for this version |

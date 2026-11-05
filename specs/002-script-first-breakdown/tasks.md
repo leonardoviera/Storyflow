@@ -321,7 +321,7 @@ verbatim.
   - Every model call goes through `withLlmSlot` and `llm()`, with `response_format`
     json_schema, `strict: true` and model `local-llm`. Throw `BreakdownStepError(readable)`
     after the repairs run out.
-- [ ] T022 [US1] Implement `apps/worker/src/handlers/breakdown-run.ts`:
+- [X] T022 [US1] Implement `apps/worker/src/handlers/breakdown-run.ts`:
   1. Load the Breakdown and the ProjectScript (for `libraryImports`), then mark the job RUNNING.
   2. If `mode = full`, run `runAnalyze` and save the document with status RUNNING.
   3. For each pending, failed or requested episode, in order:
