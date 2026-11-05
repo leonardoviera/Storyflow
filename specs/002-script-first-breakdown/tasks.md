@@ -148,7 +148,7 @@ depends on these.
   Also export `newId()`, which returns 12 URL-safe characters from `crypto.getRandomValues`, and
   the helpers `FPS = 30`, `secondsToFrames` and `dimensionsFor(aspectRatio)`, where
   `PORTRAIT_9_16` is 1080×1920 and `LANDSCAPE_16_9` is 1920×1080.
-- [ ] T008 [P] Write `packages/shared/src/breakdown/parse-script.ts`, which exports
+- [X] T008 [P] Write `packages/shared/src/breakdown/parse-script.ts`, which exports
   `parseScript(text): SourceLine[]` (R2):
   - normalize CRLF and drop blank lines;
   - number the remaining lines `L1…Ln`;
