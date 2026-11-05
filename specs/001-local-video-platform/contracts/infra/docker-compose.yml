@@ -1,0 +1,207 @@
+# StoryFlow — 100% local stack (constitution v1.0.0)
+# Target location: repo root. Secrets come from .env (see .env.example).
+# Rules: pinned images only, loopback-only ports, workers on an egress-less network.
+# Third-party images are pinned by tag AND digest (T090, 2026-11-04).
+
+name: storyflow
+
+x-telemetry-off: &telemetry-off
+  NEXT_TELEMETRY_DISABLED: "1"
+  CHECKPOINT_DISABLE: "1"          # Prisma update checks
+
+x-app-env: &app-env
+  <<: *telemetry-off
+  DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+  S3_ENDPOINT: http://minio:9000
+  S3_REGION: us-east-1
+  S3_ACCESS_KEY_ID: ${MINIO_ROOT_USER}
+  S3_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD}
+  S3_BUCKET_ASSETS: ${S3_BUCKET_ASSETS}
+  S3_BUCKET_RENDERS: ${S3_BUCKET_RENDERS}
+  LITELLM_BASE_URL: http://litellm:4000
+  LITELLM_API_KEY: ${LITELLM_MASTER_KEY}
+  LITELLM_MODEL: local-llm
+
+services:
+  postgres:
+    image: postgres:16.15-alpine@sha256:0cefaabd882e42bcb2a2f3dc56d3ce4770560ba62fd7f197f1a2e008fd5731ab
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks: [internal, edge]
+    restart: unless-stopped
+
+  minio:
+    image: pgsty/minio:RELEASE.2026-08-04T00-00-00Z@sha256:b6bfe7239bfc83fb90d31612d9704d86039dd714f7904b3f1ad68f211e602372
+    command: ["server", "/data", "--console-address", ":9001"]
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      MINIO_API_CORS_ALLOW_ORIGIN: http://localhost:${WEB_HOST_PORT:-3000},http://127.0.0.1:${WEB_HOST_PORT:-3000}
+    ports:
+      - "127.0.0.1:9000:9000"   # S3 API (browser fetches presigned URLs here)
+      - "127.0.0.1:9001:9001"   # Admin console
+    volumes:
+      - minio_data:/data
+    networks: [internal, edge]
+    restart: unless-stopped
+
+  # One-shot: waits for MinIO, creates buckets idempotently (constitution: no manual buckets).
+  minio-init:
+    image: pgsty/mc:RELEASE.2026-10-26T00-00-00Z@sha256:ce62c9053c69ce12a527a322345b5ad9f44b5f8a7b8189f82e516f2e3f30f1d8
+    depends_on: [minio]
+    entrypoint: ["/bin/sh", "/init/minio-init.sh"]
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      S3_BUCKET_ASSETS: ${S3_BUCKET_ASSETS}
+      S3_BUCKET_RENDERS: ${S3_BUCKET_RENDERS}
+    volumes:
+      - ./infra/minio:/init:ro
+    networks: [internal]
+    restart: "no"
+
+  blender-mcp:
+    build:
+      context: ./services/blender-mcp
+      args:
+        BLENDER_DEB_VERSION: "4.3.2+dfsg-2"   # Debian trixie package (research.md R6)
+    image: storyflow/blender-mcp:0.1.0
+    environment:
+      MCP_HTTP_PORT: "8000"
+      BLENDER_THREADS: "4"
+      S3_ENDPOINT: http://minio:9000
+      S3_REGION: us-east-1
+      S3_ACCESS_KEY_ID: ${MINIO_ROOT_USER}
+      S3_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD}
+      S3_BUCKET_ASSETS: ${S3_BUCKET_ASSETS}
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request;urllib.request.urlopen('http://localhost:8000/healthz')"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    deploy:
+      resources:
+        limits: { cpus: "4", memory: 8g }
+    depends_on:
+      minio-init: { condition: service_completed_successfully }
+    networks: [internal]              # no published port; reached via LiteLLM / workers
+    restart: unless-stopped
+
+  litellm:
+    image: ghcr.io/berriai/litellm:main-v1.83.14-stable@sha256:c81eb79cd4333c6cfe374c0ec929110fd23f0ee5f7fd198855a6fbddc77b83ba
+    command: ["--config", "/app/config.yaml", "--port", "4000"]
+    environment:
+      LITELLM_MASTER_KEY: ${LITELLM_MASTER_KEY}
+      LITELLM_LOCAL_MODEL_COST_MAP: "True"   # no startup fetch from GitHub
+      # Self-hosted LLM server on this machine or your LAN (constitution I/V); set in .env.
+      LLM_MODEL: ${LLM_MODEL:?set LLM_MODEL in .env}
+      LLM_API_BASE: ${LLM_API_BASE:?set LLM_API_BASE in .env (a private address)}
+      LLM_API_KEY: ${LLM_API_KEY:-none}
+    volumes:
+      - ./infra/litellm/config.yaml:/app/config.yaml:ro
+    extra_hosts:
+      - "host.docker.internal:host-gateway"  # for a model server running on this machine
+    ports:
+      - "127.0.0.1:${LITELLM_HOST_PORT:-4000}:4000"
+    depends_on:
+      blender-mcp: { condition: service_healthy }
+    networks: [internal, edge]
+    restart: unless-stopped
+
+  # One-shot: applies Prisma migrations + seeds templates.
+  db-migrate:
+    build:
+      context: .
+      dockerfile: apps/worker/Dockerfile
+    image: storyflow/worker:0.1.0
+    working_dir: /app/packages/db
+    # Direct binaries: no pnpm/corepack at runtime (internal network has no egress).
+    command: ["sh", "-c", "node_modules/.bin/prisma migrate deploy && node_modules/.bin/tsx src/seed.ts"]
+    environment:
+      <<: *app-env
+    depends_on:
+      postgres: { condition: service_healthy }
+    networks: [internal]
+    restart: "no"
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    image: storyflow/web:0.1.0
+    environment:
+      <<: *app-env
+      S3_PUBLIC_ENDPOINT: http://localhost:9000   # presign host for the browser Player
+    ports:
+      - "127.0.0.1:${WEB_HOST_PORT:-3000}:3000"
+    depends_on:
+      db-migrate: { condition: service_completed_successfully }
+      minio-init: { condition: service_completed_successfully }
+      litellm: { condition: service_started }
+    networks: [internal, edge]
+    restart: unless-stopped
+
+  pipeline-worker:
+    build:
+      context: .
+      dockerfile: apps/worker/Dockerfile
+    image: storyflow/worker:0.1.0
+    working_dir: /app/apps/worker
+    command: ["node", "--import", "tsx", "src/pipeline.ts"]
+    environment:
+      <<: *app-env
+      # T083 result (research.md R8): LiteLLM main-v1.83.14-stable cancels upstream MCP tool calls
+      # after ~60 s ("MCP client tool call was cancelled") and never relays the result, so Blender
+      # renders longer than a minute fail via the gateway. Tool calls go direct; blender_mcp stays
+      # registered in LiteLLM (health + discovery).
+      MCP_ROUTE: direct
+      BLENDER_MCP_DIRECT_URL: http://blender-mcp:8000/mcp
+    deploy:
+      resources:
+        limits: { cpus: "2", memory: 2g }
+    depends_on:
+      db-migrate: { condition: service_completed_successfully }
+      litellm: { condition: service_started }
+    networks: [internal]
+    restart: unless-stopped
+
+  render-worker:
+    build:
+      context: .
+      dockerfile: apps/worker/Dockerfile
+    image: storyflow/worker:0.1.0
+    working_dir: /app/apps/worker
+    command: ["node", "--import", "tsx", "src/render.ts"]
+    environment:
+      <<: *app-env
+      RENDER_CONCURRENCY: "4"         # hard ceiling enforced in code (constitution III)
+      REMOTION_SERVE_URL: /app/bundle # pre-built at image build (research.md R5)
+    shm_size: 1gb
+    deploy:
+      resources:
+        limits: { cpus: "4", memory: 8g }
+    depends_on:
+      db-migrate: { condition: service_completed_successfully }
+      minio-init: { condition: service_completed_successfully }
+    networks: [internal]
+    restart: unless-stopped
+
+networks:
+  internal:
+    internal: true    # no egress: enforces offline/no-runtime-download (research.md R10)
+  edge: {}
+
+volumes:
+  postgres_data:
+  minio_data:

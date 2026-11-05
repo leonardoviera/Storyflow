@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "storyflow/story-script/v1",
+  "title": "StoryScript",
+  "description": "Structured output required from the local LLM (LiteLLM response_format). Mirrored by a Zod schema in packages/shared; Zod is the runtime source of truth.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "title", "logline", "fps", "scenes"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "title": { "type": "string", "minLength": 1, "maxLength": 120 },
+    "logline": { "type": "string", "maxLength": 300 },
+    "fps": { "enum": [24, 25, 30, 60] },
+    "style": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "palette": { "type": "array", "items": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" }, "maxItems": 6 },
+        "fontFamily": { "enum": ["Inter", "Merriweather", "JetBrainsMono"], "description": "Only self-hosted fonts bundled in packages/compositions." },
+        "mood": { "type": "string", "maxLength": 60 }
+      }
+    },
+    "scenes": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 40,
+      "items": { "$ref": "#/$defs/Scene" }
+    }
+  },
+  "$defs": {
+    "Scene": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["title", "narration", "visualPrompt", "durationSeconds"],
+      "properties": {
+        "title": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "narration": { "type": "string", "maxLength": 2000 },
+        "onScreenText": { "type": "string", "maxLength": 200 },
+        "visualPrompt": { "type": "string", "maxLength": 1000 },
+        "durationSeconds": { "type": "number", "minimum": 1, "maximum": 60 },
+        "transition": { "enum": ["cut", "fade", "slide", "wipe"], "default": "cut" },
+        "asset3d": { "$ref": "#/$defs/Asset3dSpec" }
+      }
+    },
+    "Asset3dSpec": {
+      "description": "Parameters for exactly one Blender MCP tool call (see blender-mcp-tools.md).",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["tool", "params"],
+      "properties": {
+        "tool": { "enum": ["render_text_logo", "render_primitive_scene", "render_turntable"] },
+        "params": { "type": "object", "description": "Validated against the selected tool's inputSchema before enqueue." }
+      }
+    }
+  }
+}

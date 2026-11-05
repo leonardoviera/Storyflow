@@ -1,0 +1,24 @@
+{
+  "name": "@storyflow/worker",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start:pipeline": "node --import tsx src/pipeline.ts",
+    "start:render": "node --import tsx src/render.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.32.2",
+    "@remotion/bundler": "4.0.540",
+    "@remotion/cli": "4.0.540",
+    "@remotion/renderer": "4.0.540",
+    "@storyflow/compositions": "workspace:*",
+    "@storyflow/db": "workspace:*",
+    "@storyflow/shared": "workspace:*",
+    "@storyflow/storage": "workspace:*",
+    "pg-boss": "12.38.0",
+    "tsx": "4.23.15",
+    "zod": "4.6.7"
+  }
+}

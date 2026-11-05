@@ -1,0 +1,37 @@
+{
+  "name": "@storyflow/web",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "predev": "node scripts/copy-fonts.mjs",
+    "dev": "next dev",
+    "prebuild": "node scripts/copy-fonts.mjs",
+    "build": "next build",
+    "start": "next start",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@dnd-kit/core": "6.3.1",
+    "@dnd-kit/modifiers": "9.0.0",
+    "@dnd-kit/utilities": "3.2.2",
+    "@remotion/media-parser": "4.0.540",
+    "@remotion/player": "4.0.540",
+    "@storyflow/compositions": "workspace:*",
+    "@storyflow/db": "workspace:*",
+    "@storyflow/shared": "workspace:*",
+    "@storyflow/storage": "workspace:*",
+    "image-size": "2.0.4",
+    "next": "15.5.29",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
+    "remotion": "4.0.540",
+    "zod": "4.6.7"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "4.3.4",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "tailwindcss": "4.3.4"
+  }
+}

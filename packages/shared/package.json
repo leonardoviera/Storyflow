@@ -1,0 +1,24 @@
+{
+  "name": "@storyflow/shared",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./env": "./src/env.ts",
+    "./llm": "./src/llm/index.ts",
+    "./queue": "./src/queue/payloads.ts",
+    "./props": "./src/props/canonical.ts",
+    "./schemas": "./src/schemas/index.ts",
+    "./timeline": "./src/timeline/validate.ts",
+    "./props-hash": "./src/props/hash.ts",
+    "./reference": "./src/props/reference.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "openai": "7.50.0",
+    "zod": "4.6.7"
+  }
+}

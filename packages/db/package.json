@@ -1,0 +1,32 @@
+{
+  "name": "@storyflow/db",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./queue": "./src/queue.ts",
+    "./jobs": "./src/jobs.ts",
+    "./reference-template": "./src/reference-template.ts",
+    "./scripts": "./src/scripts.ts",
+    "./asset3d": "./src/asset3d.ts"
+  },
+  "scripts": {
+    "generate": "prisma generate",
+    "migrate:dev": "prisma migrate dev",
+    "migrate:deploy": "prisma migrate deploy && tsx src/seed.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@prisma/adapter-pg": "7.10.1",
+    "@prisma/client": "7.10.1",
+    "@storyflow/shared": "workspace:*",
+    "pg": "8.23.1",
+    "pg-boss": "12.38.0",
+    "tsx": "4.23.15"
+  },
+  "devDependencies": {
+    "@types/pg": "8.23.1",
+    "prisma": "7.10.1"
+  }
+}

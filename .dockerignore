@@ -1,0 +1,12 @@
+**/node_modules
+**/.next
+**/dist
+**/coverage
+**/*.log*
+.git
+.env
+.env.*
+!.env.example
+specs
+docs
+**/__pycache__

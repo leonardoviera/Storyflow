@@ -1,0 +1,223 @@
+// Prisma 7: connection URL is supplied via prisma.config.ts + @prisma/adapter-pg.
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum ScriptSource {
+  LLM
+  MANUAL
+}
+enum TrackKind {
+  VISUAL
+  OVERLAY_3D
+  TEXT
+  AUDIO
+}
+enum AssetKind {
+  IMAGE
+  VIDEO
+  AUDIO
+  MODEL_3D
+  RENDER_3D
+  FONT
+  FINAL_RENDER
+}
+enum AssetStatus {
+  PENDING
+  READY
+  FAILED
+}
+enum AssetSource {
+  UPLOAD
+  BLENDER
+  RENDER
+  SYSTEM
+}
+enum JobType {
+  SCRIPT_GENERATION
+  ASSET_3D
+  VIDEO_RENDER
+}
+enum JobStatus {
+  QUEUED
+  RUNNING
+  SUCCEEDED
+  FAILED
+  CANCELLED
+}
+
+model Project {
+  id                     String          @id @default(cuid())
+  title                  String          @db.VarChar(120)
+  prompt                 String?
+  templateId             String?
+  template               Template?       @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  compositionId          String          @default("StoryComposition")
+  width                  Int             @default(1920)
+  height                 Int             @default(1080)
+  fps                    Int             @default(30)
+  durationInFrames       Int             @default(1)
+  currentScriptVersionId String?         @unique
+  currentScriptVersion   ScriptVersion?  @relation("CurrentScript", fields: [currentScriptVersionId], references: [id], onDelete: SetNull)
+  timelineRevision       Int             @default(0)
+  archivedAt             DateTime?
+  createdAt              DateTime        @default(now())
+  updatedAt              DateTime        @updatedAt
+
+  scriptVersions ScriptVersion[] @relation("ProjectScripts")
+  tracks         Track[]
+  assets         Asset[]
+  jobs           Job[]
+  renders        Render[]
+
+  @@index([archivedAt, updatedAt])
+}
+
+model ScriptVersion {
+  id           String       @id @default(cuid())
+  projectId    String
+  project      Project      @relation("ProjectScripts", fields: [projectId], references: [id], onDelete: Cascade)
+  version      Int
+  source       ScriptSource
+  model        String?
+  sourcePrompt String?
+  content      Json
+  createdAt    DateTime     @default(now())
+
+  scenes      Scene[]
+  currentFor  Project?     @relation("CurrentScript")
+
+  @@unique([projectId, version])
+}
+
+model Scene {
+  id               String        @id @default(cuid())
+  scriptVersionId  String
+  scriptVersion    ScriptVersion @relation(fields: [scriptVersionId], references: [id], onDelete: Cascade)
+  order            Int
+  title            String        @db.VarChar(120)
+  narration        String
+  visualPrompt     String
+  durationInFrames Int
+  asset3d          Json?
+
+  clips Clip[]
+
+  @@unique([scriptVersionId, order])
+}
+
+model Track {
+  id        String    @id @default(cuid())
+  projectId String
+  project   Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  kind      TrackKind
+  order     Int
+  muted     Boolean   @default(false)
+  locked    Boolean   @default(false)
+
+  clips Clip[]
+
+  @@unique([projectId, order])
+}
+
+model Clip {
+  id               String  @id @default(cuid())
+  trackId          String
+  track            Track   @relation(fields: [trackId], references: [id], onDelete: Cascade)
+  sceneId          String?
+  scene            Scene?  @relation(fields: [sceneId], references: [id], onDelete: SetNull)
+  assetId          String?
+  asset            Asset?  @relation(fields: [assetId], references: [id], onDelete: Restrict)
+  startFrame       Int
+  durationInFrames Int
+  trimStartFrame   Int     @default(0)
+  props            Json    @default("{}")
+
+  @@index([trackId, startFrame])
+}
+
+model Asset {
+  id          String      @id @default(cuid())
+  projectId   String?
+  project     Project?    @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  kind        AssetKind
+  status      AssetStatus @default(PENDING)
+  source      AssetSource
+  bucket      String
+  objectKey   String
+  mimeType    String
+  sizeBytes   BigInt?
+  sha256      String?     @db.Char(64)
+  width       Int?
+  height      Int?
+  durationMs  Int?
+  sourceJobId String?
+  sourceJob   Job?        @relation("JobOutputs", fields: [sourceJobId], references: [id], onDelete: SetNull)
+  metadata    Json        @default("{}")
+  createdAt   DateTime    @default(now())
+
+  clips              Clip[]
+  templateThumbnails Template[]
+  renderOutputs      Render[]
+
+  @@unique([bucket, objectKey])
+  @@index([projectId, kind])
+}
+
+model Template {
+  id               String    @id @default(cuid())
+  slug             String    @unique
+  name             String
+  compositionId    String
+  defaultProps     Json
+  thumbnailAssetId String?
+  thumbnailAsset   Asset?    @relation(fields: [thumbnailAssetId], references: [id], onDelete: SetNull)
+
+  projects Project[]
+}
+
+model Job {
+  id         String    @id @default(cuid())
+  projectId  String
+  project    Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  type       JobType
+  status     JobStatus @default(QUEUED)
+  queueJobId String?   @unique @db.Uuid
+  input      Json
+  output     Json?
+  progress   Float     @default(0)
+  error      String?
+  attempts   Int       @default(0)
+  createdAt  DateTime  @default(now())
+  startedAt  DateTime?
+  finishedAt DateTime?
+
+  outputs Asset[]  @relation("JobOutputs")
+  render  Render?
+
+  @@index([projectId, createdAt])
+  @@index([status, type])
+}
+
+model Render {
+  id             String   @id @default(cuid())
+  projectId      String
+  project        Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  jobId          String   @unique
+  job            Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  compositionId  String
+  inputProps     Json
+  inputPropsHash String   @db.Char(64)
+  codec          String   @default("h264")
+  outputAssetId  String?
+  outputAsset    Asset?   @relation(fields: [outputAssetId], references: [id], onDelete: SetNull)
+  renderMs       Int?
+  createdAt      DateTime @default(now())
+
+  @@index([projectId, inputPropsHash])
+}

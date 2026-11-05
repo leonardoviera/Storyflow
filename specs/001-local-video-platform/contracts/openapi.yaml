@@ -1,0 +1,396 @@
+openapi: 3.1.0
+info:
+  title: StoryFlow Local API
+  version: 0.1.0
+  description: >
+    Next.js route handlers served at http://localhost:3000/api (loopback only, single local user,
+    no auth). Long-running work returns 202 + Job; poll GET /jobs/{id}.
+servers:
+  - url: http://localhost:3000/api
+
+paths:
+  /health:
+    get:
+      summary: Dependency health (postgres, minio, litellm, blender-mcp via litellm)
+      responses:
+        "200": { description: All healthy, content: { application/json: { schema: { $ref: "#/components/schemas/Health" } } } }
+        "503": { description: One or more dependencies down, content: { application/json: { schema: { $ref: "#/components/schemas/Health" } } } }
+
+  /projects:
+    get:
+      summary: List non-archived projects
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/Project" } } } } }
+    post:
+      summary: Create a project (optionally from a template)
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/ProjectCreate" } } }
+      responses:
+        "201": { description: Created, content: { application/json: { schema: { $ref: "#/components/schemas/Project" } } } }
+        "422": { $ref: "#/components/responses/ValidationError" }
+
+  /projects/{projectId}:
+    parameters: [{ $ref: "#/components/parameters/projectId" }]
+    get:
+      summary: Get project
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/Project" } } } }
+        "404": { $ref: "#/components/responses/NotFound" }
+    patch:
+      summary: Update title / dimensions / fps
+      requestBody:
+        content: { application/json: { schema: { $ref: "#/components/schemas/ProjectUpdate" } } }
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/Project" } } } }
+        "422": { $ref: "#/components/responses/ValidationError" }
+    delete:
+      summary: Archive (soft delete)
+      responses:
+        "204": { description: Archived }
+
+  /projects/{projectId}/scripts/generate:
+    parameters: [{ $ref: "#/components/parameters/projectId" }]
+    post:
+      summary: Enqueue local-LLM script generation (queue script.generate)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [prompt]
+              properties:
+                prompt: { type: string, minLength: 1, maxLength: 4000 }
+                model: { enum: [local-llm], default: local-llm, description: "LiteLLM alias; its backend is set by LLM_MODEL in .env" }
+                targetDurationSeconds: { type: integer, minimum: 5, maximum: 300 }
+                autoRender3d: { type: boolean, default: true }
+      responses:
+        "202": { description: Enqueued, content: { application/json: { schema: { $ref: "#/components/schemas/Job" } } } }
+        "409": { description: A script job is already active for this project }
+
+  /projects/{projectId}/scripts:
+    parameters: [{ $ref: "#/components/parameters/projectId" }]
+    get:
+      summary: List script versions
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/ScriptVersion" } } } } }
+    post:
+      summary: Save a manually edited script as a new version
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "./story-script.schema.json" } } }
+      responses:
+        "201": { description: Created, content: { application/json: { schema: { $ref: "#/components/schemas/ScriptVersion" } } } }
+        "422": { $ref: "#/components/responses/ValidationError" }
+
+  /projects/{projectId}/scripts/{version}/apply:
+    parameters:
+      - { $ref: "#/components/parameters/projectId" }
+      - { name: version, in: path, required: true, schema: { type: integer, minimum: 1 } }
+    post:
+      summary: Make version current and rebuild the timeline from its scenes
+      description: Replaces tracks/clips; increments timelineRevision.
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/Timeline" } } } }
+
+  /projects/{projectId}/timeline:
+    parameters: [{ $ref: "#/components/parameters/projectId" }]
+    get:
+      summary: Get tracks + clips + resolved preview props (browser presigned URLs)
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/Timeline" } } } }
+    put:
+      summary: Replace the whole timeline (optimistic concurrency)
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/TimelineWrite" } } }
+      responses:
+        "200": { description: Saved, content: { application/json: { schema: { $ref: "#/components/schemas/Timeline" } } } }
+        "409": { description: baseRevision != current timelineRevision }
+        "422": { $ref: "#/components/responses/ValidationError" }
+
+  /projects/{projectId}/assets:
+    parameters: [{ $ref: "#/components/parameters/projectId" }]
+    get:
+      summary: List assets
+      parameters:
+        - { name: kind, in: query, schema: { $ref: "#/components/schemas/AssetKind" } }
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/Asset" } } } } }
+
+  /projects/{projectId}/assets/uploads:
+    parameters: [{ $ref: "#/components/parameters/projectId" }]
+    post:
+      summary: Create PENDING asset + presigned PUT URL (browser uploads directly to MinIO)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [kind, mimeType, sizeBytes, filename]
+              properties:
+                kind: { $ref: "#/components/schemas/AssetKind" }
+                mimeType: { type: string }
+                sizeBytes: { type: integer, minimum: 1, maximum: 2147483648 }
+                filename: { type: string, maxLength: 255 }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  asset: { $ref: "#/components/schemas/Asset" }
+                  uploadUrl: { type: string, format: uri }
+                  expiresAt: { type: string, format: date-time }
+        "422": { $ref: "#/components/responses/ValidationError" }
+
+  /projects/{projectId}/assets/3d:
+    parameters: [{ $ref: "#/components/parameters/projectId" }]
+    post:
+      summary: Enqueue a Blender MCP render (queue asset3d.render)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tool, params]
+              properties:
+                sceneId: { type: string }
+                tool: { enum: [render_text_logo, render_primitive_scene, render_turntable] }
+                params: { type: object, description: "See blender-mcp-tools.md" }
+      responses:
+        "202": { description: Enqueued, content: { application/json: { schema: { $ref: "#/components/schemas/Job" } } } }
+        "422": { $ref: "#/components/responses/ValidationError" }
+
+  /assets/{assetId}/complete:
+    parameters: [{ $ref: "#/components/parameters/assetId" }]
+    post:
+      summary: Confirm upload (server HEADs object, computes sha256, probes dimensions) → READY
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/Asset" } } } }
+        "409": { description: Object not found in MinIO or size mismatch }
+
+  /assets/{assetId}/url:
+    parameters: [{ $ref: "#/components/parameters/assetId" }]
+    get:
+      summary: Short-lived presigned GET URL (public endpoint) for preview/download
+      responses:
+        "200":
+          description: OK
+          content: { application/json: { schema: { type: object, properties: { url: { type: string, format: uri }, expiresAt: { type: string, format: date-time } } } } }
+
+  /projects/{projectId}/renders:
+    parameters: [{ $ref: "#/components/parameters/projectId" }]
+    get:
+      summary: List renders
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/Render" } } } } }
+    post:
+      summary: Snapshot canonical props and enqueue video.render (dedupes on inputPropsHash)
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                force: { type: boolean, default: false }
+      responses:
+        "200": { description: Identical successful render exists (returned, not re-rendered), content: { application/json: { schema: { $ref: "#/components/schemas/Render" } } } }
+        "202": { description: Enqueued, content: { application/json: { schema: { $ref: "#/components/schemas/Render" } } } }
+        "422": { description: Timeline references non-READY assets or is empty }
+
+  /jobs/{jobId}:
+    parameters: [{ name: jobId, in: path, required: true, schema: { type: string } }]
+    get:
+      summary: Job status / progress
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/Job" } } } }
+
+  /jobs/{jobId}/cancel:
+    parameters: [{ name: jobId, in: path, required: true, schema: { type: string } }]
+    post:
+      summary: Cancel queued or running job
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/Job" } } } }
+        "409": { description: Job already terminal }
+
+  /templates:
+    get:
+      summary: List templates
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/Template" } } } } }
+
+components:
+  parameters:
+    projectId: { name: projectId, in: path, required: true, schema: { type: string } }
+    assetId: { name: assetId, in: path, required: true, schema: { type: string } }
+
+  responses:
+    NotFound:
+      description: Not found
+      content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } }
+    ValidationError:
+      description: Request failed Zod validation
+      content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } }
+
+  schemas:
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error: { type: string }
+        issues: { type: array, items: { type: object } }
+
+    Health:
+      type: object
+      properties:
+        status: { enum: [ok, degraded] }
+        checks:
+          type: object
+          additionalProperties: { enum: [ok, down] }
+
+    Project:
+      type: object
+      required: [id, title, compositionId, width, height, fps, durationInFrames, timelineRevision, createdAt, updatedAt]
+      properties:
+        id: { type: string }
+        title: { type: string }
+        prompt: { type: [string, "null"] }
+        templateId: { type: [string, "null"] }
+        compositionId: { type: string }
+        width: { type: integer }
+        height: { type: integer }
+        fps: { enum: [24, 25, 30, 60] }
+        durationInFrames: { type: integer }
+        currentScriptVersionId: { type: [string, "null"] }
+        timelineRevision: { type: integer }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+
+    ProjectCreate:
+      type: object
+      required: [title]
+      properties:
+        title: { type: string, minLength: 1, maxLength: 120 }
+        prompt: { type: string, maxLength: 4000 }
+        templateSlug: { type: string }
+        width: { type: integer, default: 1920 }
+        height: { type: integer, default: 1080 }
+        fps: { enum: [24, 25, 30, 60], default: 30 }
+
+    ProjectUpdate:
+      type: object
+      properties:
+        title: { type: string, minLength: 1, maxLength: 120 }
+        width: { type: integer }
+        height: { type: integer }
+        fps: { enum: [24, 25, 30, 60] }
+
+    ScriptVersion:
+      type: object
+      properties:
+        id: { type: string }
+        version: { type: integer }
+        source: { enum: [LLM, MANUAL] }
+        model: { type: [string, "null"] }
+        content: { $ref: "./story-script.schema.json" }
+        createdAt: { type: string, format: date-time }
+
+    TrackKind: { enum: [VISUAL, OVERLAY_3D, TEXT, AUDIO] }
+
+    Clip:
+      type: object
+      required: [startFrame, durationInFrames]
+      properties:
+        id: { type: string, description: "Omit to create" }
+        sceneId: { type: [string, "null"] }
+        assetId: { type: [string, "null"] }
+        startFrame: { type: integer, minimum: 0 }
+        durationInFrames: { type: integer, minimum: 1 }
+        trimStartFrame: { type: integer, minimum: 0, default: 0 }
+        props: { type: object, description: "ClipProps — composition-props.md" }
+
+    Track:
+      type: object
+      required: [kind, order, clips]
+      properties:
+        id: { type: string }
+        kind: { $ref: "#/components/schemas/TrackKind" }
+        order: { type: integer }
+        muted: { type: boolean }
+        locked: { type: boolean }
+        clips: { type: array, maxItems: 200, items: { $ref: "#/components/schemas/Clip" } }
+
+    TimelineWrite:
+      type: object
+      required: [baseRevision, tracks]
+      properties:
+        baseRevision: { type: integer }
+        tracks: { type: array, maxItems: 16, items: { $ref: "#/components/schemas/Track" } }
+
+    Timeline:
+      type: object
+      properties:
+        revision: { type: integer }
+        durationInFrames: { type: integer }
+        tracks: { type: array, items: { $ref: "#/components/schemas/Track" } }
+        previewProps: { type: object, description: "Resolved StoryCompositionProps (browser URLs)" }
+
+    AssetKind: { enum: [IMAGE, VIDEO, AUDIO, MODEL_3D, RENDER_3D, FONT, FINAL_RENDER] }
+
+    Asset:
+      type: object
+      properties:
+        id: { type: string }
+        projectId: { type: [string, "null"] }
+        kind: { $ref: "#/components/schemas/AssetKind" }
+        status: { enum: [PENDING, READY, FAILED] }
+        source: { enum: [UPLOAD, BLENDER, RENDER, SYSTEM] }
+        mimeType: { type: string }
+        sizeBytes: { type: [integer, "null"] }
+        sha256: { type: [string, "null"] }
+        width: { type: [integer, "null"] }
+        height: { type: [integer, "null"] }
+        durationMs: { type: [integer, "null"] }
+        createdAt: { type: string, format: date-time }
+
+    Job:
+      type: object
+      properties:
+        id: { type: string }
+        projectId: { type: string }
+        type: { enum: [SCRIPT_GENERATION, ASSET_3D, VIDEO_RENDER] }
+        status: { enum: [QUEUED, RUNNING, SUCCEEDED, FAILED, CANCELLED] }
+        progress: { type: number, minimum: 0, maximum: 1 }
+        output: { type: [object, "null"] }
+        error: { type: [string, "null"] }
+        attempts: { type: integer }
+        createdAt: { type: string, format: date-time }
+        startedAt: { type: [string, "null"], format: date-time }
+        finishedAt: { type: [string, "null"], format: date-time }
+
+    Render:
+      type: object
+      properties:
+        id: { type: string }
+        job: { $ref: "#/components/schemas/Job" }
+        compositionId: { type: string }
+        inputPropsHash: { type: string }
+        codec: { type: string }
+        outputAssetId: { type: [string, "null"] }
+        renderMs: { type: [integer, "null"] }
+        createdAt: { type: string, format: date-time }
+
+    Template:
+      type: object
+      properties:
+        id: { type: string }
+        slug: { type: string }
+        name: { type: string }
+        compositionId: { type: string }
+        defaultProps: { type: object }
