@@ -291,7 +291,7 @@ verbatim.
   Add `tests/unit/breakdown/llm-schemas.test.ts`. It checks that each JSON Schema is accepted by
   the `strict: true` rules: `additionalProperties: false` and every property listed in
   `required`.
-- [ ] T020 [P] [US1] Write `packages/shared/src/breakdown/prompts.ts` with
+- [X] T020 [P] [US1] Write `packages/shared/src/breakdown/prompts.ts` with
   `analyzeSystemPrompt(settings)`, `analyzeChunkSystemPrompt()`, `analyzeReducePrompt()`,
   `episodeSystemPrompt(targetSeconds)` (which includes `BLENDER_TOOL_SUMMARIES`) and
   `breakdownRepairPrompt(issues)`. It also has the formatters `formatLines(sourceLines)` (output
