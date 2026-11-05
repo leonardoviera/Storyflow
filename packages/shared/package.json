@@ -7,6 +7,7 @@
     ".": "./src/index.ts",
     "./env": "./src/env.ts",
     "./llm": "./src/llm/index.ts",
+    "./breakdown": "./src/breakdown/index.ts",
     "./queue": "./src/queue/payloads.ts",
     "./props": "./src/props/canonical.ts",
     "./schemas": "./src/schemas/index.ts",
