@@ -392,7 +392,7 @@ verbatim.
   - `UploadReview.tsx`: a file picker that accepts `.txt,.md,.docx`, calls the upload route,
     shows the extracted text with "Use this text" and "Cancel", and shows the error code
     messages in pt-BR.
-- [ ] T030 [US1] Write the script screen `apps/web/src/app/projects/[projectId]/script/page.tsx`.
+- [X] T030 [US1] Write the script screen `apps/web/src/app/projects/[projectId]/script/page.tsx`.
   It lays out SettingsBar, ScriptInput, UploadReview and a **Start breakdown** button. When
   clicked, it calls POST breakdowns and navigates to `/projects/{id}/breakdown`. Keep the tab
   layout ready for the "Generate from an idea" mode added in US2.
