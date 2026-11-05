@@ -213,7 +213,7 @@ depends on these.
     - `MISSING_SPEAKER` (blocks the build);
     - `EPISODE_LENGTH` (>20%);
     - `VERBATIM_DRIFT` (info).
-- [ ] T014 Write unit tests in `tests/unit/breakdown/` for T008–T013:
+- [X] T014 Write unit tests in `tests/unit/breakdown/` for T008–T013:
   - `parse-script.test.ts`: every fixture from T003, and each hint form;
   - `durations.test.ts`:
     - property-style loops over random shot lists with a fixed seed, checking that sums are
