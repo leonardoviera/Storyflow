@@ -375,7 +375,7 @@ verbatim.
     T040);
   - `apps/web/src/app/api/projects/[projectId]/breakdowns/[version]/episodes/[episodeId]/retry/route.ts`
     (POST).
-- [ ] T027 [US1] Make the projects API script-first (FR-001):
+- [X] T027 [US1] Make the projects API script-first (FR-001):
   - `POST /api/projects` accepts `start: "script" | "empty_timeline"`, default `script`
     (`apps/web/src/server/projects.ts`, `apps/web/src/app/api/projects/route.ts`);
   - `apps/web/src/components/NewProjectDialog.tsx` routes to `/projects/{id}/script`, and to

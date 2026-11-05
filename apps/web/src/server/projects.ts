@@ -16,6 +16,8 @@ export const ProjectCreate = z.object({
   width: Dimension.default(1920),
   height: Dimension.default(1080),
   fps: Fps.default(30),
+  // FR-001: new projects start on the script screen unless the creator picks an empty timeline.
+  start: z.enum(["script", "empty_timeline"]).default("script"),
 });
 
 export const ProjectUpdate = z
