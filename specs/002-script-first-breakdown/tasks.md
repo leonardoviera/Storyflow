@@ -301,7 +301,7 @@ verbatim.
   - write descriptions in the source language;
   - never invent, rewrite or translate dialogue;
   - use only the given ids.
-- [ ] T021 [US1] Write `packages/shared/src/llm/run-breakdown.ts`:
+- [X] T021 [US1] Write `packages/shared/src/llm/run-breakdown.ts`:
   - **`runAnalyze`** takes the sourceLines, settings, fixedAssets and an `onStep` callback.
     - It uses a single call, or map-reduce when `estimateTokens > 16000`, with chunks of about
       12k tokens cut on `heading` lines (R3).
