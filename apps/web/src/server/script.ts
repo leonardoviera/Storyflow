@@ -26,11 +26,12 @@ function tooManyWords(words: number) {
 
 export async function getScript(projectId: string) {
   await getProject(projectId);
-  return getPrisma().projectScript.upsert({
+  const script = await getPrisma().projectScript.upsert({
     where: { projectId },
     create: { projectId, text: "", origin: "PASTE" },
     update: {},
   });
+  return { ...script, wordCount: countWords(script.text) };
 }
 
 export async function putScript(projectId: string, input: z.infer<typeof ScriptWrite>) {
@@ -49,7 +50,8 @@ export async function putScript(projectId: string, input: z.infer<typeof ScriptW
   };
   const { count } = await prisma.projectScript.updateMany({ where: { projectId, revision: input.baseRevision }, data });
   if (count === 0) throw new ConflictError("The script was changed elsewhere (stale baseRevision)");
-  return prisma.projectScript.findUniqueOrThrow({ where: { projectId } });
+  const script = await prisma.projectScript.findUniqueOrThrow({ where: { projectId } });
+  return { ...script, wordCount: words };
 }
 
 const MIME_BY_EXT: Record<string, string> = {

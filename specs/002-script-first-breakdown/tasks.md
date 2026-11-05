@@ -355,7 +355,7 @@ verbatim.
     `request.formData()`, `export const runtime = "nodejs"`).
 
   Error bodies must carry no stack traces.
-- [ ] T025 [US1] Write `apps/web/src/server/breakdowns.ts`:
+- [X] T025 [US1] Write `apps/web/src/server/breakdowns.ts`:
   - **`startBreakdown(projectId)`**:
     - return 422 when the script is empty;
     - run `parseScript`;
