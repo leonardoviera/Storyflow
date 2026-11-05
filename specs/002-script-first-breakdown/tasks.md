@@ -126,7 +126,7 @@ depends on these.
 
 ### Pure breakdown core (packages/shared/src/breakdown)
 
-- [ ] T007 [P] Write `packages/shared/src/breakdown/document.ts` with the Zod schemas from DM §2,
+- [X] T007 [P] Write `packages/shared/src/breakdown/document.ts` with the Zod schemas from DM §2,
   with every limit exactly as written:
   - `BreakdownDocument` (`schemaVersion: 1`, `fps: 30`, `aspectRatio`);
   - `Synopsis`: storyType ≤ 80, audience ≤ 120, setting ≤ 300, summary ≤ 2,000, profile ≤ 1,000;
