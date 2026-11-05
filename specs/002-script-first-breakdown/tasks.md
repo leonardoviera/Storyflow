@@ -114,7 +114,7 @@ depends on these.
   `prisma migrate dev --create-only --name script_first`. Check that the SQL adds the enum
   values with `ALTER TYPE … ADD VALUE` and does not recreate the existing enums. Regenerate the
   client (`packages/db/src/generated/`).
-- [ ] T006 Change `packages/db/src/index.ts` so it exports the new model types. Add
+- [X] T006 Change `packages/db/src/index.ts` so it exports the new model types. Add
   `packages/db/src/breakdowns.ts` with these helpers:
   - `nextBreakdownVersion(projectId)`;
   - `updateBreakdownDocument(id, baseRevision, document, status?)`, a conditional `updateMany`

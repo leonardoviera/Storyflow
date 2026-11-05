@@ -4,7 +4,8 @@ export class NotFoundError extends Error {
   }
 }
 
-export class ConflictError extends Error {}
+// One class for web and db helpers, so http.ts maps both to 409.
+export { ConflictError } from "@storyflow/db/breakdowns";
 
 /** 422 with explicit issues (non-Zod validation, e.g. timeline rules). */
 export class ValidationError extends Error {
