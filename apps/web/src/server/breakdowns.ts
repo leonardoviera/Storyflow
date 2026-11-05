@@ -101,6 +101,7 @@ export async function getBreakdown(projectId: string, version: number) {
     jobId: b.jobId,
     settings: b.settings,
     document: b.document,
+    sourceLines,
     flags,
   };
 }

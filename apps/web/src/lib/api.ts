@@ -1,5 +1,5 @@
 // Typed client for contracts/openapi.yaml (browser side) + specs/002 contracts/openapi-delta.yaml.
-import type { BreakdownDocument, Flag, ScriptSettings } from "@storyflow/shared/breakdown";
+import type { BreakdownDocument, Flag, ScriptSettings, SourceLine } from "@storyflow/shared/breakdown";
 import type { ClipProps, StoryCompositionProps, StoryScript, TrackKind } from "@storyflow/shared/schemas";
 
 export class ApiError extends Error {
@@ -175,6 +175,7 @@ export interface Breakdown extends BreakdownSummary {
   jobId: string | null;
   settings: ScriptSettings & { fps: number; analysis?: { speakerMap: Record<string, string>; maxSensibleEpisodes: number } };
   document: BreakdownDocument;
+  sourceLines: SourceLine[];
   flags: Flag[];
 }
 

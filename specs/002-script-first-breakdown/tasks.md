@@ -416,7 +416,7 @@ verbatim.
   BreakdownProgress while RUNNING, then SynopsisPanel, AssetBible, EpisodeTree and FlagsPanel,
   read-only in this story. If `maxSensibleEpisodes` is less than the request, it shows the
   explanation from the analyze step.
-- [ ] T034 [US1] Write `scripts/eval-breakdown.mjs`, a manual tool that needs the LAN LLM:
+- [X] T034 [US1] Write `scripts/eval-breakdown.mjs`, a manual tool that needs the LAN LLM:
   - `--check-verbatim <projectId> <version>` loads the breakdown through the API and checks that
     every `dialogue` or `narration` source line appears exactly once with identical text
     (SC-003). It also checks that the duration sums are exact and every segment is 4–15 s
