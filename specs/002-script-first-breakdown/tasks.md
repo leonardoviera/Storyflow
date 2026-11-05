@@ -369,7 +369,7 @@ verbatim.
     and `flags` from `checkBreakdown`.
   - **`retryEpisode(projectId, version, episodeId)`**: 409 if a breakdown job is active,
     otherwise enqueue with mode episodes.
-- [ ] T026 [US1] Add these routes:
+- [X] T026 [US1] Add these routes:
   - `apps/web/src/app/api/projects/[projectId]/breakdowns/route.ts` (GET list, POST start);
   - `apps/web/src/app/api/projects/[projectId]/breakdowns/[version]/route.ts` (GET; PUT comes in
     T040);
