@@ -152,6 +152,8 @@ services:
     networks: [internal, edge]
     restart: unless-stopped
 
+  # MUST stay a single replica: withLlmSlot() keeps one LLM request in flight per process, so a
+  # second replica would break FR-032 / constitution III (spec 002, R7).
   pipeline-worker:
     build:
       context: .

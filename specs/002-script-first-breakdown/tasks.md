@@ -245,7 +245,7 @@ depends on these.
   Then extend `apps/web/src/server/jobs.ts` and `apps/web/src/app/api/jobs/[jobId]/route.ts` so
   the response includes `queuePosition` and `steps` (from `Job.output.steps`), as in
   contracts/openapi-delta.yaml `/api/jobs/{jobId}`.
-- [ ] T017 Register stub handlers in `apps/worker/src/pipeline.ts`:
+- [X] T017 Register stub handlers in `apps/worker/src/pipeline.ts`:
   `work(QUEUES.scriptWrite, { localConcurrency: 1 }, handleScriptWrite)` and
   `work(QUEUES.breakdownRun, { localConcurrency: 1 }, handleBreakdownRun)`. The handlers go in
   `apps/worker/src/handlers/script-write.ts` and `apps/worker/src/handlers/breakdown-run.ts`;
