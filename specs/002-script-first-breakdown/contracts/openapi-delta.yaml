@@ -1,0 +1,384 @@
+openapi: 3.1.0
+info:
+  title: StoryFlow API — feature 002 additions
+  version: 0.2.0
+  description: >
+    Additions to specs/001-local-video-platform/contracts/openapi.yaml. Same conventions:
+    JSON bodies, errors as { error: { code, message, issues? } }, no stack traces,
+    optimistic locking with baseRevision → 409 on mismatch. Schemas named *Document mirror the
+    Zod types in packages/shared/src/breakdown (Zod is authoritative).
+servers:
+  - url: http://127.0.0.1:3001
+paths:
+  /api/projects:
+    post:
+      summary: Create a project (changed — script-first by default)
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [title]
+              properties:
+                title: { type: string, maxLength: 120 }
+                start: { type: string, enum: [script, empty_timeline], default: script }
+      responses:
+        "201":
+          description: Created. UI routes to /projects/{id}/script when start=script (FR-001).
+          content: { application/json: { schema: { $ref: "#/components/schemas/ProjectSummary" } } }
+    get:
+      summary: List projects (changed — STANDARD projects only)
+
+  /api/projects/{projectId}/script:
+    parameters: [{ $ref: "#/components/parameters/projectId" }]
+    get:
+      summary: Current script and production settings
+      responses:
+        "200": { content: { application/json: { schema: { $ref: "#/components/schemas/ProjectScript" } } } }
+    put:
+      summary: Autosave script text and settings (FR-004, FR-005)
+      requestBody:
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: "#/components/schemas/ScriptSettings"
+                - type: object
+                  required: [baseRevision, text]
+                  properties:
+                    baseRevision: { type: integer, minimum: 0 }
+                    text: { type: string, description: "≤ 50,000 words" }
+                    origin: { type: string, enum: [PASTE, UPLOAD, GENERATED] }
+                    sourceAssetId: { type: [string, "null"] }
+      responses:
+        "200": { content: { application/json: { schema: { $ref: "#/components/schemas/ProjectScript" } } } }
+        "409": { description: Stale baseRevision }
+        "422": { description: Over 50,000 words or settings out of range }
+
+  /api/projects/{projectId}/script/upload:
+    parameters: [{ $ref: "#/components/parameters/projectId" }]
+    post:
+      summary: Extract text from a .txt/.md/.docx file (FR-002); does not overwrite the script
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file: { type: string, format: binary, description: "≤ 10 MB" }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  text: { type: string }
+                  wordCount: { type: integer }
+                  sourceAssetId: { type: string, description: "Stored original (AssetKind DOCUMENT)" }
+        "413": { description: File over 10 MB }
+        "422":
+          description: >
+            UNSUPPORTED_TYPE (e.g. .pdf), NOT_UTF8, DOCX_UNREADABLE (corrupt or password-protected),
+            TOO_MANY_WORDS (> 50,000)
+
+  /api/projects/{projectId}/script/generate:
+    parameters: [{ $ref: "#/components/parameters/projectId" }]
+    post:
+      summary: Write a script from an idea (US2, FR-003) — enqueues script.write
+      requestBody:
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: "#/components/schemas/ScriptSettings"
+                - type: object
+                  required: [idea]
+                  properties:
+                    idea: { type: string, minLength: 1, maxLength: 4000 }
+      responses:
+        "202": { content: { application/json: { schema: { $ref: "#/components/schemas/JobRef" } } } }
+
+  /api/projects/{projectId}/breakdowns:
+    parameters: [{ $ref: "#/components/parameters/projectId" }]
+    get:
+      summary: List breakdown versions (FR-012)
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/BreakdownSummary" }
+    post:
+      summary: Start a breakdown of the current script (US1) — new version, enqueues breakdown.run
+      responses:
+        "202":
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/JobRef"
+                  - type: object
+                    properties: { version: { type: integer } }
+        "422": { description: Empty script or settings out of range }
+
+  /api/projects/{projectId}/breakdowns/{version}:
+    parameters: [{ $ref: "#/components/parameters/projectId" }, { $ref: "#/components/parameters/version" }]
+    get:
+      summary: Breakdown version with document and computed flags
+      responses:
+        "200": { content: { application/json: { schema: { $ref: "#/components/schemas/Breakdown" } } } }
+    put:
+      summary: Autosave review edits (FR-017, FR-021)
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [baseRevision, document]
+              properties:
+                baseRevision: { type: integer }
+                document: { $ref: "#/components/schemas/BreakdownDocument" }
+      responses:
+        "200": { content: { application/json: { schema: { $ref: "#/components/schemas/Breakdown" } } } }
+        "409": { description: "STALE_REVISION or BREAKDOWN_RUNNING" }
+        "422": { description: Hard validation errors (data-model.md §2) }
+
+  /api/projects/{projectId}/breakdowns/{version}/current:
+    parameters: [{ $ref: "#/components/parameters/projectId" }, { $ref: "#/components/parameters/version" }]
+    post:
+      summary: Make this version the current one (restore, FR-012)
+      responses: { "200": { description: OK } }
+
+  /api/projects/{projectId}/breakdowns/{version}/episodes/{episodeId}/retry:
+    parameters:
+      - { $ref: "#/components/parameters/projectId" }
+      - { $ref: "#/components/parameters/version" }
+      - { $ref: "#/components/parameters/episodeId" }
+    post:
+      summary: Re-run the episode pass for one failed episode (FR-011)
+      responses:
+        "202": { content: { application/json: { schema: { $ref: "#/components/schemas/JobRef" } } } }
+        "409": { description: A breakdown job is already running for this version }
+
+  /api/projects/{projectId}/breakdowns/{version}/assets/{assetId}:
+    parameters:
+      - { $ref: "#/components/parameters/projectId" }
+      - { $ref: "#/components/parameters/version" }
+      - { name: assetId, in: path, required: true, schema: { type: string } }
+    get:
+      summary: Usage count of a bible asset (shots mentioning it) — used by the delete confirmation (FR-020)
+      responses:
+        "200":
+          content:
+            application/json:
+              schema: { type: object, properties: { shotCount: { type: integer }, shotIds: { type: array, items: { type: string } } } }
+
+  /api/projects/{projectId}/breakdowns/{version}/export:
+    parameters: [{ $ref: "#/components/parameters/projectId" }, { $ref: "#/components/parameters/version" }]
+    get:
+      summary: Export shot list (FR-022)
+      parameters:
+        - { name: format, in: query, required: true, schema: { type: string, enum: [md, html, json] } }
+        - { name: episode, in: query, required: false, schema: { type: string } }
+      responses:
+        "200":
+          description: text/markdown, text/html (print-ready) or application/json (BreakdownDocument + exportVersion 1)
+
+  /api/projects/{projectId}/episodes:
+    parameters: [{ $ref: "#/components/parameters/projectId" }]
+    get:
+      summary: Episode timelines built from the current breakdown
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    episodeId: { type: string }
+                    episodeProjectId: { type: [string, "null"] }
+                    hasHandEdits: { type: boolean }
+                    placeholderCount: { type: integer }
+
+  /api/projects/{projectId}/episodes/{episodeId}/timeline:
+    parameters: [{ $ref: "#/components/parameters/projectId" }, { $ref: "#/components/parameters/episodeId" }]
+    post:
+      summary: Build (or rebuild) the episode timeline (US4, FR-023..FR-027)
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                confirmReplace: { type: boolean, default: false }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  episodeProjectId: { type: string }
+                  revision: { type: integer }
+                  placeholders: { type: integer }
+                  jobs: { type: array, items: { $ref: "#/components/schemas/JobRef" }, description: "asset3d.render jobs" }
+                  snapshotId: { type: [string, "null"], description: "Previous timeline kept (FR-027)" }
+                  downgraded: { type: array, items: { type: object, properties: { shotId: { type: string }, reason: { type: string } } } }
+        "409": { description: "HAND_EDITS (confirmReplace required) or BREAKDOWN_RUNNING" }
+        "422": { description: "BLOCKING_FLAGS — unresolved missing mentions/speakers, with paths" }
+
+  /api/projects/{projectId}/placeholders/{clipId}/fill:
+    parameters:
+      - { $ref: "#/components/parameters/projectId" }
+      - { name: clipId, in: path, required: true, schema: { type: string } }
+    post:
+      summary: Fill a placeholder on an episode timeline (FR-026)
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [baseRevision, assetId]
+              properties:
+                baseRevision: { type: integer }
+                assetId: { type: string, description: "READY IMAGE or VIDEO asset" }
+                applyToSameSetting: { type: boolean, default: false }
+      responses:
+        "200": { description: Updated timeline (001 Timeline schema) plus filledClipIds }
+        "409": { description: Stale baseRevision }
+
+  /api/projects/{projectId}/timeline/snapshots:
+    parameters: [{ $ref: "#/components/parameters/projectId" }]
+    get:
+      summary: Previous timeline versions (FR-027)
+  /api/projects/{projectId}/timeline/snapshots/{snapshotId}/restore:
+    parameters:
+      - { $ref: "#/components/parameters/projectId" }
+      - { name: snapshotId, in: path, required: true, schema: { type: string } }
+    post:
+      summary: Restore a snapshot (current timeline is snapshotted first)
+
+  /api/library:
+    get:
+      summary: Browse/search the global library (FR-029)
+      parameters:
+        - { name: type, in: query, schema: { type: string, enum: [CHARACTER, SETTING, PROP] } }
+        - { name: q, in: query, schema: { type: string, maxLength: 80 } }
+    post:
+      summary: Save a bible asset to the library (copy)
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [projectId, version, assetId]
+              properties:
+                projectId: { type: string }
+                version: { type: integer }
+                assetId: { type: string }
+      responses:
+        "201": { description: Created LibraryAsset }
+        "409": { description: "NAME_TAKEN — same type+name exists; use PUT to update" }
+  /api/library/{libraryAssetId}:
+    parameters: [{ name: libraryAssetId, in: path, required: true, schema: { type: string } }]
+    put:
+      summary: Explicitly update a library entry from a project copy (FR-030)
+    delete:
+      summary: Delete a library entry (project copies and images are kept)
+  /api/projects/{projectId}/library-imports:
+    parameters: [{ $ref: "#/components/parameters/projectId" }]
+    post:
+      summary: Import a library asset — into ProjectScript.libraryImports (before a breakdown) or the current breakdown document
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object, required: [libraryAssetId], properties: { libraryAssetId: { type: string } } }
+
+  /api/jobs/{jobId}:
+    get:
+      summary: Job status (changed — adds queuePosition and steps for LLM jobs, FR-011/FR-032)
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string, enum: [QUEUED, RUNNING, SUCCEEDED, FAILED, CANCELLED] }
+                  progress: { type: number }
+                  queuePosition: { type: [integer, "null"], description: "LLM jobs ahead of this one; null when running/finished" }
+                  steps:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        key: { type: string, description: '"analyze" or an episode id' }
+                        status: { type: string, enum: [pending, running, done, failed] }
+                        error: { type: [string, "null"] }
+
+components:
+  parameters:
+    projectId: { name: projectId, in: path, required: true, schema: { type: string } }
+    version: { name: version, in: path, required: true, schema: { type: integer, minimum: 1 } }
+    episodeId: { name: episodeId, in: path, required: true, schema: { type: string } }
+  schemas:
+    ProjectSummary:
+      type: object
+      properties:
+        id: { type: string }
+        title: { type: string }
+        kind: { type: string, enum: [STANDARD, EPISODE] }
+    ScriptSettings:
+      type: object
+      properties:
+        aspectRatio: { type: string, enum: [PORTRAIT_9_16, LANDSCAPE_16_9], default: PORTRAIT_9_16 }
+        episodeSeconds: { type: integer, minimum: 15, maximum: 300, default: 60 }
+        episodeCount: { type: integer, minimum: 1, maximum: 20, default: 1 }
+    ProjectScript:
+      allOf:
+        - $ref: "#/components/schemas/ScriptSettings"
+        - type: object
+          properties:
+            text: { type: string }
+            origin: { type: string, enum: [PASTE, UPLOAD, GENERATED] }
+            idea: { type: [string, "null"] }
+            sourceAssetId: { type: [string, "null"] }
+            libraryImports: { type: array, items: { type: object } }
+            revision: { type: integer }
+            wordCount: { type: integer }
+    JobRef:
+      type: object
+      properties: { jobId: { type: string } }
+    BreakdownSummary:
+      type: object
+      properties:
+        version: { type: integer }
+        status: { type: string, enum: [RUNNING, READY, PARTIAL, FAILED, CANCELLED] }
+        isCurrent: { type: boolean }
+        createdAt: { type: string, format: date-time }
+    Breakdown:
+      allOf:
+        - $ref: "#/components/schemas/BreakdownSummary"
+        - type: object
+          properties:
+            revision: { type: integer }
+            jobId: { type: [string, "null"] }
+            settings: { $ref: "#/components/schemas/ScriptSettings" }
+            document: { $ref: "#/components/schemas/BreakdownDocument" }
+            flags:
+              type: array
+              items:
+                type: object
+                properties:
+                  code: { type: string, enum: [SEGMENT_DURATION, SHOT_TOO_SHORT, MISSING_MENTION, MISSING_SPEAKER, EPISODE_LENGTH, VERBATIM_DRIFT] }
+                  path: { type: string }
+                  message: { type: string }
+                  blocksBuild: { type: boolean }
+    BreakdownDocument:
+      type: object
+      description: See data-model.md §2 (Zod BreakdownDocument is authoritative).
