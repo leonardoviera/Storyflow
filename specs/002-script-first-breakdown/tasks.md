@@ -348,7 +348,7 @@ verbatim.
     - store the original in the `storyflow-assets` bucket as an `Asset`, kind `DOCUMENT`, source
       `UPLOAD`, status READY;
     - return `{ text, wordCount, sourceAssetId }` without saving it as the script.
-- [ ] T024 [US1] Add these routes, using the 001 route helpers in `apps/web/src/server/http.ts`
+- [X] T024 [US1] Add these routes, using the 001 route helpers in `apps/web/src/server/http.ts`
   and `errors.ts`:
   - `apps/web/src/app/api/projects/[projectId]/script/route.ts` (GET, PUT);
   - `apps/web/src/app/api/projects/[projectId]/script/upload/route.ts` (POST, multipart through
