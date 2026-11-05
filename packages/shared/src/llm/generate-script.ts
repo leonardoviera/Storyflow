@@ -3,6 +3,7 @@ import { Blender3dToolParams } from "../schemas/blender-tools";
 import { StoryScript, StoryScriptJsonSchema } from "../schemas/story-script";
 import { llm, type LocalModel } from "./client";
 import { directorSystemPrompt, repairPrompt } from "./prompts";
+import { withLlmSlot } from "./slot";
 
 export class ScriptValidationError extends Error {
   constructor(public readonly issues: string) {
@@ -33,15 +34,17 @@ export async function generateStoryScript(opts: {
 
   let lastIssues = "";
   for (let attempt = 0; attempt <= MAX_REPAIRS; attempt++) {
-    const completion = await llm().chat.completions.create({
-      model: opts.model,
-      messages,
-      temperature: 0.7,
-      response_format: {
-        type: "json_schema",
-        json_schema: { name: "StoryScript", schema: StoryScriptJsonSchema as Record<string, unknown>, strict: true },
-      },
-    });
+    const completion = await withLlmSlot(() =>
+      llm().chat.completions.create({
+        model: opts.model,
+        messages,
+        temperature: 0.7,
+        response_format: {
+          type: "json_schema",
+          json_schema: { name: "StoryScript", schema: StoryScriptJsonSchema as Record<string, unknown>, strict: true },
+        },
+      }),
+    );
     const content = completion.choices[0]?.message?.content ?? "";
 
     let json: unknown;

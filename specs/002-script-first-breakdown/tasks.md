@@ -190,7 +190,7 @@ depends on these.
     untouched (R11);
   - `extractMentionIds(text)`;
   - `usageOf(doc, assetId | variantId)`, which returns `{ shotCount, shotIds }`.
-- [ ] T012 [P] Write `packages/shared/src/llm/slot.ts`. It exports `withLlmSlot<T>(fn: () =>
+- [X] T012 [P] Write `packages/shared/src/llm/slot.ts`. It exports `withLlmSlot<T>(fn: () =>
   Promise<T>): Promise<T>`, an in-process FIFO mutex so that only one LLM call is in flight at a
   time (R7, FR-032). Wrap the existing call in
   `packages/shared/src/llm/generate-script.ts` (`llm().chat.completions.create`) with it, and
