@@ -52,3 +52,12 @@ describe("LLM JSON Schemas", () => {
     expect(EpisodeOutput.safeParse(out(shot({ kind: "none" }, 16))).success).toBe(false);
   });
 });
+
+describe("guessLanguage", async () => {
+  const { guessLanguage } = await import("../../../packages/shared/src/breakdown/prompts");
+  it("recognizes Portuguese and English scripts", () => {
+    expect(guessLanguage("Lucas pega a vassoura. Não é possível que a padaria está vazia, você viu?")).toBe("Portuguese");
+    expect(guessLanguage("Priya stares at the laptop and the screen. You are tired, this is the pitch.")).toBe("English");
+    expect(guessLanguage("ok")).toBeNull();
+  });
+});

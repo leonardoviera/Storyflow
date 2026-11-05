@@ -85,8 +85,9 @@ Produce segments in story order:
 - Each segment has one or more shots. For each shot give:
   - shotSize: extreme_wide, wide, medium, medium_close, close_up, extreme_close_up or insert;
   - camera: a short camera direction ("static", "slow push-in", "pan left");
-  - action: what we see, in the script's language. Mention assets as @{variantId} using ids from
-    the table, e.g. "@{abc123def456} opens the door";
+  - action: what we see, in the script's language. Mention assets as @{variantId}, always with
+    the braces and always a VARIANT id from the table, e.g. "@{abc123def456} opens the door".
+    Never quote dialogue in the action;
   - spokenLineIds: the dialogue lines spoken in this shot, in order;
   - actionLineIds: the heading, action and parenthetical lines this shot covers;
   - speakerByLine: for every id in spokenLineIds, the CHARACTER asset id who speaks it, or null
@@ -106,6 +107,27 @@ ${COMMON_RULES}`;
 
 export function breakdownRepairPrompt(issues: string): string {
   return `Your previous JSON had these problems. Fix ONLY these problems and return the full corrected JSON object, nothing else:\n${issues}`;
+}
+
+const LANGUAGE_WORDS: [string, Set<string>][] = [
+  ["Portuguese", new Set(["não", "você", "está", "então", "também", "uma", "que", "para", "com", "é", "os", "do", "da"])],
+  ["English", new Set(["the", "and", "you", "is", "are", "this", "that", "with", "for", "of", "it", "to"])],
+  ["Spanish", new Set(["el", "los", "las", "usted", "pero", "qué", "una", "con", "es", "del", "y"])],
+];
+
+/** Best guess of the script's language from common words, so prompts can name it (R15). */
+export function guessLanguage(text: string): string | null {
+  const words = text.toLowerCase().split(/[^\p{L}]+/u);
+  let best: string | null = null;
+  let bestCount = 0;
+  for (const [name, set] of LANGUAGE_WORDS) {
+    const count = words.filter((w) => set.has(w)).length;
+    if (count > bestCount) {
+      best = name;
+      bestCount = count;
+    }
+  }
+  return bestCount >= 3 ? best : null;
 }
 
 export function formatLines(sourceLines: SourceLine[]): string {

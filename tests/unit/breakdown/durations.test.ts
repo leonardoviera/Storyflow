@@ -123,3 +123,15 @@ describe("fitDurations", () => {
     }
   });
 });
+
+describe("fitDurations long dialogue shots", () => {
+  it("splits a dialogue shot sitting exactly at its floor above 15 s", () => {
+    // Four 12-word lines: floor ≈ 4 × 12 / 2.5 + 0.3 s = 19.5 s, more than one segment can hold.
+    const lines = [1, 2, 3, 4].map((n) => line(`f${n}`, words(12), "x"));
+    const floor = shotFloorFrames(lines);
+    const ep = episode([segment("s1", ROOM, [shot("a", floor, lines)])], floor);
+    const out = fitDurations(ep, floor);
+    for (const seg of out.segments) expect(seg.durationInFrames).toBeLessThanOrEqual(450);
+    expect(out.segments.flatMap((s) => s.shots.flatMap((h) => h.lines.map((l) => l.id)))).toEqual(lines.map((l) => l.id));
+  });
+});

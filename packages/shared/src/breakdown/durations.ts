@@ -94,18 +94,20 @@ function splitLongShot(w: WShot, makeId: (p: string) => string): WShot[] {
   const [linesA, linesB] = splitLines(w.shot.lines);
   const floorA = shotFloorFrames(linesA);
   const floorB = shotFloorFrames(linesB);
-  // Nothing left to move into a second shot: keep it and let the validator flag it.
-  if (w.frames - floorA < floorB) return [w];
+  // Each half gets its own 0.3 s line padding, so a shot at its floor grows by a few frames.
+  const total = Math.max(w.frames, floorA + floorB);
+  // A single line too long for 15 s cannot be split: keep it and let the validator flag it.
+  if (linesB.length === 0 && w.shot.lines.length > 0 && floorA > MAX_SEGMENT_FRAMES) return [w];
   const ratio = lineWords(w.shot.lines) > 0 ? lineWords(linesA) / lineWords(w.shot.lines) : 0.5;
-  let framesA = Math.max(floorA, w.frames * ratio);
-  if (w.frames - framesA < floorB) framesA = w.frames - floorB;
+  let framesA = Math.max(floorA, total * ratio);
+  if (total - framesA < floorB) framesA = total - floorB;
   const a: WShot = { shot: { ...w.shot, lines: linesA }, floor: floorA, frames: framesA };
   const b: WShot = {
     shot: { ...w.shot, id: makeId(w.shot.id), lines: linesB, continued: true },
     floor: floorB,
-    frames: w.frames - framesA,
+    frames: total - framesA,
   };
-  if (a.frames >= w.frames) return [w];
+  if (a.frames >= w.frames) return [w]; // no progress: stop instead of recursing forever
   return [...splitLongShot(a, makeId), ...splitLongShot(b, makeId)];
 }
 
