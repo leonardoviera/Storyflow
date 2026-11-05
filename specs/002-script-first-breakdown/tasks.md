@@ -403,7 +403,7 @@ verbatim.
   - a **Cancel** button (`POST /api/jobs/{id}/cancel`);
   - a **Retry** button per failed episode;
   - the readable error when the AI server is unavailable, with a "your script was saved" note.
-- [ ] T032 [P] [US1] Write the read-only view components in
+- [X] T032 [P] [US1] Write the read-only view components in
   `apps/web/src/components/breakdown/`:
   - `SynopsisPanel.tsx`;
   - `AssetBible.tsx`, with Characters, Settings and Props tabs, aliases and variants;
