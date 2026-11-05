@@ -195,7 +195,7 @@ depends on these.
   time (R7, FR-032). Wrap the existing call in
   `packages/shared/src/llm/generate-script.ts` (`llm().chat.completions.create`) with it, and
   export it from `packages/shared/src/llm/index.ts`.
-- [ ] T013 [P] Write `packages/shared/src/breakdown/check.ts`. It exports
+- [X] T013 [P] Write `packages/shared/src/breakdown/check.ts`. It exports
   `checkBreakdown(doc, sourceLines): { errors: Issue[], flags: Flag[] }`, as in DM §2
   "Validation":
   - **errors**:
