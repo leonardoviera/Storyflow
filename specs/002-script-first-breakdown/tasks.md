@@ -423,7 +423,7 @@ verbatim.
     (SC-004).
   - Directory mode runs all the fixtures and prints character and location recall against
     `*.expected.json`, plus the duplicate rate (SC-005). Directory mode is completed in T066.
-- [ ] T035 [US1] Run quickstart Checks A2, A3 and A4 against the compose stack and fix any
+- [X] T035 [US1] Run quickstart Checks A2, A3 and A4 against the compose stack and fix any
   failures. Record the timings: under 3 min per 60 s episode (SC-002).
 
 **Checkpoint**: US1 works on its own. This is the MVP: script → breakdown → read-only result.

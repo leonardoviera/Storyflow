@@ -102,6 +102,14 @@ describe("runAnalyze", () => {
     expect(byName("Seu Antônio").type).toBe("CHARACTER");
   });
 
+  it("caps the episode count when the script is too short for the request", async () => {
+    const many = { ...analyze, episodePlan: { maxSensibleEpisodes: 7, episodes: ["L1", "L2", "L3", "L4", "L5", "L6", "L7"].map((id) => ({ title: id, startLineId: id })) } };
+    replies.push(JSON.stringify(many));
+    const { doc, maxSensibleEpisodes } = await runAnalyze({ sourceLines, settings: { ...settings, episodeCount: 10 }, fixedAssets: [] });
+    expect(doc.episodes).toHaveLength(2); // 7 lines, at least 3 lines per episode
+    expect(maxSensibleEpisodes).toBe(2);
+  });
+
   it("throws BreakdownStepError after two failed repairs", async () => {
     replies.push("not json", "not json", "not json");
     await expect(runAnalyze({ sourceLines, settings, fixedAssets: [] })).rejects.toBeInstanceOf(BreakdownStepError);
@@ -156,7 +164,7 @@ describe("runEpisode", () => {
     expect(checkBreakdown(full, sourceLines).errors).toEqual([]);
   });
 
-  it("asks for a repair when lines are missing or a setting is wrong", async () => {
+  it("asks for a repair when a line is missing, and fixes a wrong setting itself", async () => {
     const { doc, speakerMap } = await analyzed();
     const ana = doc.assets.find((a) => a.name === "Ana")!;
     const rua = doc.assets.find((a) => a.name === "Rua")!.variants[0]!;
@@ -171,7 +179,8 @@ describe("runEpisode", () => {
     const episode = await runEpisode({ doc, episode: doc.episodes[1]!, sourceLines, speakerMap });
     const repair = (create.mock.calls[2]![0] as { messages: { content: string }[] }).messages.at(-1)!.content;
     expect(repair).toContain("missing; put each in exactly one shot: L6");
-    expect(repair).toContain("must be a variant id of a SETTING asset");
+    expect(repair).not.toContain("SETTING");
+    expect(episode.segments.every((seg) => doc.assets.find((a) => a.variants.some((v) => v.id === seg.settingVariantId))?.type === "SETTING")).toBe(true);
     expect(episode.segments[0]!.shots[0]!.lines[0]!.text).toBe("ANA: Até amanhã.");
   });
 

@@ -9,7 +9,7 @@ import {
   SourceLine,
   type Episode,
 } from "@storyflow/shared/breakdown";
-import { BreakdownStepError, runAnalyze, runEpisode } from "@storyflow/shared/llm";
+import { BreakdownCancelled, BreakdownStepError, isLlmUnavailable, runAnalyze, runEpisode } from "@storyflow/shared/llm";
 import type { QueuePayload } from "@storyflow/shared/queue";
 import { z } from "zod";
 import { errorMessage, log } from "../lib/runtime";
@@ -27,18 +27,12 @@ const StoredSettings = ScriptSettings.extend({ analysis: Analysis.optional() });
 
 export const AI_UNAVAILABLE = "AI server unavailable";
 
-function isAiUnavailable(err: unknown): boolean {
-  if (!err || typeof err !== "object") return false;
-  const e = err as { status?: number; name?: string; code?: string; cause?: { code?: string } };
-  if (typeof e.status === "number" && e.status >= 500) return true;
-  if (e.name === "APIConnectionError" || e.name === "APIConnectionTimeoutError") return true;
-  return [e.code, e.cause?.code].some((c) => c === "ECONNREFUSED" || c === "ECONNRESET" || c === "ENOTFOUND");
-}
 
 export async function handleBreakdownRun(payload: QueuePayload<"breakdown.run">, _ctx: WorkContext) {
   const prisma = getPrisma();
   const { jobId, breakdownId, mode } = payload;
   const steps: JobStep[] = [];
+  const shouldStop = () => isCancelled(jobId);
   let analyzing = false;
   let analysisDone = mode !== "full";
 
@@ -71,6 +65,7 @@ export async function handleBreakdownRun(payload: QueuePayload<"breakdown.run">,
         settings,
         fixedAssets,
         onStep: (message) => log("breakdown analyze", { jobId, message }),
+        shouldStop,
       });
       analyzing = false;
       analysisDone = true;
@@ -109,15 +104,22 @@ export async function handleBreakdownRun(payload: QueuePayload<"breakdown.run">,
       await write({ ...episode, status: "running", error: undefined });
       await setStep(episode.id, "running");
       try {
-        const done = await runEpisode({ doc, episode, sourceLines, speakerMap: analysis.speakerMap });
+        const done = await runEpisode({ doc, episode, sourceLines, speakerMap: analysis.speakerMap, shouldStop });
         await write(done);
         await setStep(episode.id, "done");
       } catch (err) {
-        const reason = isAiUnavailable(err) ? AI_UNAVAILABLE : errorMessage(err);
+        if (err instanceof BreakdownCancelled) {
+          // The episode in progress goes back to pending so it can be retried (FR-011).
+          await write({ ...episode, status: "pending", error: undefined });
+          await setStep(episode.id, "pending");
+          cancelled = true;
+          break;
+        }
+        const reason = isLlmUnavailable(err) ? AI_UNAVAILABLE : errorMessage(err);
         log("breakdown episode failed", { jobId, episodeId: episode.id, error: reason });
         await write({ ...episode, status: "failed", error: reason, segments: [] });
         await setStep(episode.id, "failed", reason);
-        if (isAiUnavailable(err)) throw err;
+        if (isLlmUnavailable(err)) throw err;
       }
       await reportProgress(jobId, (mode === "full" ? 0.1 : 0) + ((mode === "full" ? 0.9 : 1) * (i + 1)) / toRun.length);
     }
@@ -133,12 +135,12 @@ export async function handleBreakdownRun(payload: QueuePayload<"breakdown.run">,
     await succeed(jobId, { steps } as Prisma.InputJsonValue);
     log("breakdown finished", { jobId, breakdownId, status });
   } catch (err) {
-    if (err instanceof JobCancelled) {
+    if (err instanceof JobCancelled || err instanceof BreakdownCancelled) {
       await prisma.breakdown.update({ where: { id: breakdownId }, data: { status: "CANCELLED" } }).catch(() => undefined);
       log("breakdown cancelled", { jobId, breakdownId });
       return;
     }
-    const reason = isAiUnavailable(err) ? AI_UNAVAILABLE : errorMessage(err);
+    const reason = isLlmUnavailable(err) ? AI_UNAVAILABLE : errorMessage(err);
     log("breakdown failed", { jobId, breakdownId, error: reason });
     if (analyzing) await setStep("analyze", "failed", reason).catch(() => undefined);
     // No analysis means nothing to keep (FAILED); otherwise finished episodes stay (PARTIAL).

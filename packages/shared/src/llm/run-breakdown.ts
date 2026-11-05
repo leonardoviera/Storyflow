@@ -48,6 +48,11 @@ import { withLlmSlot } from "./slot";
 
 export class BreakdownStepError extends Error {}
 
+/** Thrown before an LLM call when the caller's shouldStop() says the job was cancelled. */
+export class BreakdownCancelled extends Error {}
+
+type ShouldStop = () => Promise<boolean>;
+
 const MAX_REPAIRS = 2;
 const MAP_REDUCE_TOKENS = 16_000;
 const CHUNK_TOKENS = 12_000;
@@ -56,6 +61,7 @@ const CHUNK_TOKENS = 12_000;
 // whose tail is missing is accepted and the tail goes into the next call.
 const EPISODE_WINDOW_LINES = 15;
 const EPISODE_WINDOW_MAX = 25;
+const MIN_LINES_PER_EPISODE = 3;
 const MODEL = "local-llm";
 // gpt-oss spends most of its time reasoning at the default effort: a small structured call took
 // 318 s at default and 17 s at "low" on the LAN server (T035). The output is checked by schema
@@ -76,6 +82,8 @@ async function callStructured<S extends z.ZodType>(opts: {
   /** Deterministic fixes applied before the checks (e.g. speakers the server already knows). */
   normalize?: (out: z.infer<S>) => z.infer<S>;
   check?: (out: z.infer<S>) => string[];
+  /** Checked before every LLM call (contracts/queue-jobs-delta.md "Cancellation"). */
+  shouldStop?: ShouldStop;
 }): Promise<z.infer<S>> {
   const messages: ChatCompletionMessageParam[] = [
     { role: "system", content: opts.system },
@@ -83,6 +91,7 @@ async function callStructured<S extends z.ZodType>(opts: {
   ];
   let issues: string[] = [];
   for (let attempt = 0; attempt <= MAX_REPAIRS; attempt++) {
+    if (await opts.shouldStop?.()) throw new BreakdownCancelled(`${opts.step}: cancelled`);
     // Streamed so long episode passes never hit fetch's 5-minute wait for response headers.
     const content = await withLlmSlot(async () => {
       const stream = await llm().chat.completions.create({
@@ -282,6 +291,7 @@ export async function runAnalyze(opts: {
   settings: ScriptSettings;
   fixedAssets: BibleAsset[];
   onStep?: (message: string) => void | Promise<void>;
+  shouldStop?: ShouldStop;
 }): Promise<AnalyzeResult> {
   const { sourceLines, settings, fixedAssets } = opts;
   if (sourceLines.length === 0) throw new BreakdownStepError("The script is empty");
@@ -300,6 +310,7 @@ export async function runAnalyze(opts: {
       name: "AnalyzeOutput",
       normalize,
       check,
+      shouldStop: opts.shouldStop,
     });
   } else {
     const chunks = chunkOnHeadings(sourceLines);
@@ -314,6 +325,7 @@ export async function runAnalyze(opts: {
           schema: AnalyzeChunkOutput,
           jsonSchema: AnalyzeChunkOutputJsonSchema,
           name: "AnalyzeChunkOutput",
+          shouldStop: opts.shouldStop,
         }),
       );
     }
@@ -330,6 +342,7 @@ export async function runAnalyze(opts: {
       name: "AnalyzeOutput",
       normalize,
       check,
+      shouldStop: opts.shouldStop,
     });
   }
 
@@ -340,7 +353,11 @@ export async function runAnalyze(opts: {
     if (id) speakerMap[m.speakerHint] = id;
   }
   const index = new Map(sourceLines.map((l, i) => [l.id, i]));
-  const plan = out.episodePlan.episodes;
+  // Edge case "too few lines for the request": never fewer than MIN_LINES_PER_EPISODE lines each;
+  // extra episodes are dropped by keeping evenly spaced starts from the model's plan.
+  const cap = Math.max(1, Math.floor(sourceLines.length / MIN_LINES_PER_EPISODE));
+  const proposed = out.episodePlan.episodes;
+  const plan = proposed.length <= cap ? proposed : Array.from({ length: cap }, (_, i) => proposed[Math.round((i * proposed.length) / cap)]!);
   const episodes: Episode[] = plan.map((e, i) => {
     const next = plan[i + 1];
     const endIndex = next ? index.get(next.startLineId)! - 1 : sourceLines.length - 1;
@@ -369,7 +386,7 @@ export async function runAnalyze(opts: {
     assets,
     episodes,
   };
-  return { doc, speakerMap, maxSensibleEpisodes: out.episodePlan.maxSensibleEpisodes };
+  return { doc, speakerMap, maxSensibleEpisodes: Math.min(out.episodePlan.maxSensibleEpisodes, episodes.length) };
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -479,9 +496,17 @@ function lineWindows(lines: SourceLine[]): SourceLine[][] {
  *   a CHARACTER variant id is read as its asset; only unnamed dialogue (dash lines) relies on the
  *   model;
  * - mentions written as `@id` (no braces) or with an asset id become `@{variantId}`, using the
- *   asset's first variant.
+ *   asset's first variant; a setting given as an asset id becomes its first variant, and an
+ *   unknown setting falls back to the previous segment's;
+ * - in a prose script (no dialogue and no headings anywhere) every line is narration (R2).
  */
-function normalizeEpisode(out: EpisodeOutput, lines: SourceLine[], doc: BreakdownDocument, speakerMap: Record<string, string>) {
+function normalizeEpisode(
+  out: EpisodeOutput,
+  lines: SourceLine[],
+  doc: BreakdownDocument,
+  speakerMap: Record<string, string>,
+  prose: boolean,
+) {
   const hintOf = new Map(lines.map((l) => [l.id, l.speakerHint]));
   const ownerOfVariant = new Map(doc.assets.flatMap((a) => a.variants.map((v) => [v.id, a] as const)));
   const variantFor = (id: string) => (ownerOfVariant.has(id) ? id : doc.assets.find((a) => a.id === id)?.variants[0]?.id);
@@ -500,13 +525,26 @@ function normalizeEpisode(out: EpisodeOutput, lines: SourceLine[], doc: Breakdow
     segment.shots = segment.shots.filter((s) => s.spokenLineIds.length + s.actionLineIds.length > 0 || s.action.trim());
   }
   out.segments = out.segments.filter((s) => s.shots.length > 0);
+  const settingVariants = doc.assets.filter((a) => a.type === "SETTING").flatMap((a) => a.variants.map((v) => v.id));
+  let previousSetting = settingVariants[0];
+  for (const segment of out.segments) {
+    const id = variantFor(segment.settingVariantId);
+    if (id !== undefined && ownerOfVariant.get(id)?.type === "SETTING") segment.settingVariantId = id;
+    else if (previousSetting) segment.settingVariantId = previousSetting;
+    previousSetting = segment.settingVariantId;
+  }
   for (const shot of out.segments.flatMap((s) => s.shots)) {
+    if (prose) {
+      shot.spokenLineIds = [...shot.spokenLineIds, ...shot.actionLineIds];
+      shot.actionLineIds = [];
+    }
     shot.action = shot.action.replace(/@\{?([A-Za-z0-9_-]{12})\}?/g, (match, id: string) => {
       const variantId = variantFor(id);
       return variantId ? `@{${variantId}}` : match;
     });
     const given = new Map(shot.speakerByLine.map((s) => [s.lineId, s.assetId]));
     shot.speakerByLine = shot.spokenLineIds.map((lineId) => {
+      if (prose) return { lineId, assetId: null };
       const hint = hintOf.get(lineId);
       const known = hint ? speakerMap[hint] : undefined;
       if (known) return { lineId, assetId: known };
@@ -523,12 +561,14 @@ export async function runEpisode(opts: {
   episode: Episode;
   sourceLines: SourceLine[];
   speakerMap: Record<string, string>;
+  shouldStop?: ShouldStop;
 }): Promise<Episode> {
   const { doc, episode, speakerMap } = opts;
   const lines = linesInRange(opts.sourceLines, episode.sourceLineRange.from, episode.sourceLineRange.to);
   if (lines.length === 0) throw new BreakdownStepError(`Episode ${episode.order}: its line range is empty`);
   const targetSeconds = episode.targetFrames / FPS;
   const language = guessLanguage(lines.map((l) => l.text).join("\n"));
+  const prose = opts.sourceLines.every((l) => l.hint === "action");
 
   const outputs: EpisodeOutput["segments"] = [];
   let remaining = lines;
@@ -551,8 +591,9 @@ export async function runEpisode(opts: {
       schema: EpisodeOutput,
       jsonSchema: EpisodeOutputJsonSchema,
       name: "EpisodeOutput",
-      normalize: (o) => normalizeEpisode(o, window, doc, speakerMap),
+      normalize: (o) => normalizeEpisode(o, window, doc, speakerMap, prose),
       check: (o) => episodeIssues(o, window, doc),
+      shouldStop: opts.shouldStop,
     });
     outputs.push(...out.segments);
     remaining = [...uncoveredTail(out, window), ...remaining.slice(window.length)];

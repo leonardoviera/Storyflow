@@ -143,3 +143,22 @@ bash scripts/offline-smoke.sh                            # internet uplink off, 
 - The offline smoke test passes, and a breakdown still runs with the internet disconnected.
 
 Record the results in `specs/002-script-first-breakdown/checklists/validation.md`.
+
+## Validation log
+
+### 2026-11-05: MVP (US1), T035, against the compose stack and the LAN `gpt-oss:20b`
+
+| Check | Result |
+|---|---|
+| A2 | API: `startup.docx` → 321 words; `.pdf` → 422 `UNSUPPORTED_TYPE`; Latin-1 `.txt` → 422 `NOT_UTF8`; 11 MB → 413 `TOO_LARGE`. Script and breakdown pages return 200. The click-through in the browser was not run (Chrome extension not connected) |
+| A3 | `padaria.md`, 9:16, 2 × 60 s: `READY` in **359 s** (~3 min per episode, at the SC-002 limit). 83/83 spoken lines verbatim, exact sums, no `SEGMENT_DURATION`. 2 × `EPISODE_LENGTH`, expected: 1,449 words of mostly dialogue do not fit in 120 s |
+| A4.1 | LiteLLM stopped → job `FAILED` with "AI server unavailable"; script kept (452 words) |
+| A4.2 | `serie-ep.md`, 3 × 30 s, cancelled during episode 2 → `CANCELLED`, episode 1 done, 2 and 3 pending; each retried on its own → `READY`, 19/19 verbatim |
+| A4.3 | `farol.txt` → `READY`, 28/28 lines as narration, only `EPISODE_LENGTH` |
+| A4.4 | 5-line script, 10 episodes requested → fewer episodes, with the reason shown |
+
+Changes the live runs required (commit 05382a5 and the T035 follow-ups): `reasoning_effort: "low"`
+(318 s → 17 s for a small call), streamed completions, episode passes in ~15–25-line windows
+that continue from the first uncovered line, deterministic normalization of speakers, settings,
+mention tokens and repeated line ids, prose scripts as narration, an episode-count floor of
+3 lines per episode, and cancellation checked before every LLM call.
