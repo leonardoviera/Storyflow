@@ -278,7 +278,7 @@ verbatim.
 
 ### Implementation for User Story 1
 
-- [ ] T019 [P] [US1] Write `packages/shared/src/breakdown/llm-schemas.ts`, using Zod and
+- [X] T019 [P] [US1] Write `packages/shared/src/breakdown/llm-schemas.ts`, using Zod and
   `z.toJSONSchema`, the same way `StoryScriptJsonSchema` is built. It defines `AnalyzeOutput`,
   `AnalyzeChunkOutput` and `EpisodeOutput`, exactly as in contracts/llm-breakdown.md §2–§3:
   - `episodePlan.maxSensibleEpisodes`;

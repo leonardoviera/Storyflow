@@ -99,7 +99,8 @@ EpisodeOutput {
       actionLineIds: string[]         // heading/action/parenthetical lines this shot covers
       speakerByLine: { lineId: string; assetId: string | null }[]   // null = narration
       sound: string
-      visual: { kind: "none" } | { kind: "image" } | { kind: "3d"; tool: string; params: object }
+      visual: { kind: "none" } | { kind: "image" } | { kind: "3d"; tool: string; paramsJson: string }
+      // paramsJson: the tool params as a JSON string; strict mode cannot express an open object
       suggestedSeconds: number        // 1–15
     }[]
   }[]
@@ -111,7 +112,7 @@ EpisodeOutput {
    ∪ `actionLineIds`. The repair prompt lists the missing and duplicated ids.
 2. Every `settingVariantId` and every mention token resolves to the right asset type.
 3. Every spoken line has a `speakerByLine` entry. A dialogue line must have a CHARACTER.
-4. 3D visuals must pass `Blender3dToolParams`. If they don't, the shot is **downgraded** to `{
+4. 3D visuals (`paramsJson` parsed as JSON) must pass `Blender3dToolParams`. If they don't, the shot is **downgraded** to `{
    kind: "image", fallbackReason }` without a repair.
 
 **Then**:
