@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { ZodError, type ZodType } from "zod";
 import { AssetNotReadyError } from "@storyflow/storage";
-import { ConflictError, NotFoundError, ValidationError } from "./errors";
+import { ApiError, ConflictError, NotFoundError, ValidationError } from "./errors";
 
 type Handler<C> = (req: Request, ctx: C) => Promise<Response>;
 
@@ -23,6 +23,7 @@ export function route<C>(handler: Handler<C>): Handler<C> {
           { status: 422 },
         );
       }
+      if (err instanceof ApiError) return NextResponse.json({ error: err.message, code: err.code }, { status: err.status });
       if (err instanceof NotFoundError) return NextResponse.json({ error: err.message }, { status: 404 });
       if (err instanceof ConflictError) return NextResponse.json({ error: err.message }, { status: 409 });
       console.error(JSON.stringify({ msg: "unhandled api error", url: req.url, err: String(err), stack: (err as Error)?.stack }));

@@ -334,7 +334,7 @@ verbatim.
      state machine).
   6. If LiteLLM cannot be reached (ECONNREFUSED, 5xx), fail with the readable message "AI server
      unavailable".
-- [ ] T023 [P] [US1] Write `apps/web/src/server/script.ts`:
+- [X] T023 [P] [US1] Write `apps/web/src/server/script.ts`:
   - `getScript(projectId)`, which creates an empty `ProjectScript` lazily;
   - `putScript(projectId, input)`, with optimistic `baseRevision`, rejecting more than 50,000
     words with 422 and validating the settings with `ScriptSettings`;

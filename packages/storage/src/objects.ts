@@ -79,6 +79,12 @@ export async function uploadFile(bucket: string, key: string, path: string, mime
   return { sha256: hash.digest("hex"), sizeBytes };
 }
 
+/** Single-request upload of a small in-memory object; returns its sha256 and size. */
+export async function uploadBuffer(bucket: string, key: string, data: Uint8Array, mimeType: string) {
+  await internalS3().send(new PutObjectCommand({ Bucket: bucket, Key: key, Body: data, ContentType: mimeType }));
+  return { sha256: createHash("sha256").update(data).digest("hex"), sizeBytes: data.byteLength };
+}
+
 /** HeadBucket on each bucket; throws if any is unreachable. */
 export async function assertBucketsReachable(buckets: string[]): Promise<void> {
   for (const Bucket of buckets) await internalS3().send(new HeadBucketCommand({ Bucket }));

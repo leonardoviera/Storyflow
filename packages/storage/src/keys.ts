@@ -7,7 +7,8 @@ export type AssetKindName =
   | "MODEL_3D"
   | "RENDER_3D"
   | "FONT"
-  | "FINAL_RENDER";
+  | "FINAL_RENDER"
+  | "DOCUMENT";
 
 export const MIME_ALLOW_LIST: Record<AssetKindName, Record<string, string>> = {
   IMAGE: { "image/png": "png", "image/jpeg": "jpg", "image/webp": "webp" },
@@ -17,6 +18,11 @@ export const MIME_ALLOW_LIST: Record<AssetKindName, Record<string, string>> = {
   RENDER_3D: { "image/png": "png", "video/webm": "webm" },
   FONT: { "font/woff2": "woff2" },
   FINAL_RENDER: { "video/mp4": "mp4" },
+  DOCUMENT: {
+    "text/plain": "txt",
+    "text/markdown": "md",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document": "docx",
+  },
 };
 
 export const MAX_UPLOAD_BYTES = 2 * 1024 * 1024 * 1024; // "Upload limit 2 GiB"
