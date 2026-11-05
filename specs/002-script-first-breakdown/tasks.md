@@ -181,7 +181,7 @@ depends on these.
   `checkCoverage(lineIds: string[], shots: { spokenLineIds, actionLineIds }[])`, which returns
   `{ missing: string[], duplicated: string[] }` (R1). It also exports `linesInRange(sourceLines,
   from, to)`.
-- [ ] T011 [P] Write `packages/shared/src/breakdown/mentions.ts`:
+- [X] T011 [P] Write `packages/shared/src/breakdown/mentions.ts`:
   - the token regex `@\{([A-Za-z0-9_-]{12})\}`;
   - `labelFor(doc, variantId)`, which gives `@Name·Variant`, or `@Name` when the variant is
     named `default`;
