@@ -164,7 +164,7 @@ depends on these.
     - `parenthetical`: `(…)`;
     - `action`: everything else.
   - also export `estimateTokens(text) = ceil(chars / 3.5)` and `countWords(text)`.
-- [ ] T009 [P] Write `packages/shared/src/breakdown/durations.ts`. It exports
+- [X] T009 [P] Write `packages/shared/src/breakdown/durations.ts`. It exports
   `fitDurations(episode, targetFrames): Episode` exactly as specified in R4:
   - a per-shot floor of `max(30, ceil((words/2.5 + 0.3) × 30))` frames;
   - scaling of the non-dialogue time toward the target;
