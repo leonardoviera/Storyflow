@@ -228,7 +228,7 @@ depends on these.
 
 ### Queues and jobs (packages/shared, packages/db, apps/worker)
 
-- [ ] T015 Extend `packages/shared/src/queue/payloads.ts` as described in
+- [X] T015 Extend `packages/shared/src/queue/payloads.ts` as described in
   contracts/queue-jobs-delta.md:
   - **Queue names**: add `scriptWrite: "script.write"` and `breakdownRun: "breakdown.run"`.
   - **`ScriptWritePayload`**: `idea` 1–4000, `aspectRatio`, `episodeSeconds` int 15–300 and
