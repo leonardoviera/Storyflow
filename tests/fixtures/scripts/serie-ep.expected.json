@@ -1,0 +1,9 @@
+{
+  "characters": [
+    { "name": "Ana Lima", "aliases": ["Ana", "Dra. Lima"] },
+    { "name": "Tiago", "aliases": [] },
+    { "name": "Seu Waldemar", "aliases": ["Waldemar"] },
+    { "name": "Dr. Raul Mendes", "aliases": ["Raul", "Dr. Raul"] }
+  ],
+  "locations": ["Pronto-socorro", "Leito quatro", "Sala dos médicos"]
+}

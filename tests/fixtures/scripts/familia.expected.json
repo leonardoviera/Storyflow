@@ -1,0 +1,8 @@
+{
+  "characters": [
+    { "name": "Dona Rosa", "aliases": ["Mãe", "Rosa"] },
+    { "name": "Júlia", "aliases": [] },
+    { "name": "Pedro", "aliases": [] }
+  ],
+  "locations": ["Cozinha", "Sala de jantar", "Quintal"]
+}

@@ -1,0 +1,8 @@
+{
+  "characters": [
+    { "name": "Priya", "aliases": [] },
+    { "name": "Marcus", "aliases": [] },
+    { "name": "Dana Okafor", "aliases": ["Dana"] }
+  ],
+  "locations": ["Co-working space", "Co-working space kitchen", "Conference hall"]
+}

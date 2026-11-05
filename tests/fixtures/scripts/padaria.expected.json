@@ -1,0 +1,8 @@
+{
+  "characters": [
+    { "name": "Seu Antônio", "aliases": ["Antônio"] },
+    { "name": "Lucas", "aliases": [] },
+    { "name": "Dona Célia", "aliases": ["Célia"] }
+  ],
+  "locations": ["Padaria São Jorge", "Rua da Padaria", "Apartamento de Dona Célia"]
+}

@@ -1,0 +1,7 @@
+{
+  "characters": [
+    { "name": "Bento", "aliases": [] },
+    { "name": "Capitão da traineira", "aliases": ["capitão"] }
+  ],
+  "locations": ["Farol", "Ilha das Gaivotas", "Cais de pedra"]
+}

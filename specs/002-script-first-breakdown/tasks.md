@@ -58,7 +58,7 @@ This is the existing pnpm monorepo: `apps/web`, `apps/worker`,
   breakdown modules created below. Add the subpath export `"./breakdown"` to
   `packages/shared/package.json` the same way the existing subpaths `./schemas`, `./timeline`,
   `./llm` and `./queue` are exported.
-- [ ] T003 [P] Create the fixture folder `tests/fixtures/scripts/` with 5 **original** reference
+- [X] T003 [P] Create the fixture folder `tests/fixtures/scripts/` with 5 **original** reference
   scripts and a matching `<name>.expected.json` for each, listing
   `{ characters: [{ name, aliases[] }], locations: [name] }` (R14):
   - `padaria.md`: a pt-BR screenplay of about 1,500 words with 3 locations, `INT./EXT.` headings
