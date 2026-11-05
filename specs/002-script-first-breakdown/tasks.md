@@ -384,7 +384,7 @@ verbatim.
 - [X] T028 [P] [US1] Write `apps/web/src/hooks/useScript.ts`: load the script, autosave the text
   and settings about 800 ms after the last change with `baseRevision`, and on 409 refetch and
   show "changed elsewhere". It also returns a `saving|saved|error` state.
-- [ ] T029 [P] [US1] Write the script components in `apps/web/src/components/script/`:
+- [X] T029 [P] [US1] Write the script components in `apps/web/src/components/script/`:
   - `SettingsBar.tsx`: aspect ratio 9:16 or 16:9, episode length 15–300 s, episodes 1–20, with
     the defaults 9:16, 60 and 1;
   - `ScriptInput.tsx`: a large textarea, the word count, a 50,000-word limit warning and the
