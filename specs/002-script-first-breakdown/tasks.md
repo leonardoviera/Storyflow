@@ -110,7 +110,7 @@ depends on these.
     - `type BibleAssetType`, `name String @db.VarChar(80)`, `aliases String[]`,
       `description String`, `variants Json`;
     - `createdAt`, `updatedAt`, `@@unique([type, name])`.
-- [ ] T005 Generate the migration `packages/db/prisma/migrations/<timestamp>_script_first/` with
+- [X] T005 Generate the migration `packages/db/prisma/migrations/<timestamp>_script_first/` with
   `prisma migrate dev --create-only --name script_first`. Check that the SQL adds the enum
   values with `ALTER TYPE … ADD VALUE` and does not recreate the existing enums. Regenerate the
   client (`packages/db/src/generated/`).
