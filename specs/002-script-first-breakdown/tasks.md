@@ -82,7 +82,7 @@ depends on these.
 
 ### Database (packages/db)
 
-- [ ] T004 Extend `packages/db/prisma/schema.prisma` exactly as described in DM §1.
+- [X] T004 Extend `packages/db/prisma/schema.prisma` exactly as described in DM §1.
   - **New enums**: `ProjectKind { STANDARD EPISODE }`, `ScriptOrigin { PASTE UPLOAD GENERATED }`,
     `BreakdownStatus { RUNNING READY PARTIAL FAILED CANCELLED }`,
     `AspectRatio { PORTRAIT_9_16 LANDSCAPE_16_9 }` and
