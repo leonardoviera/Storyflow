@@ -239,7 +239,7 @@ depends on these.
     - `script.write`: retryLimit 1, expire 600 s, exclusive;
     - `breakdown.run`: retryLimit 0, expire 3600 s, exclusive.
   - **`singletonKeyFor`**: `write:{projectId}` and `breakdown:{breakdownId}`.
-- [ ] T016 Add `queuePositionFor(jobId)` to `packages/db/src/jobs.ts`. It counts the `Job` rows
+- [X] T016 Add `queuePositionFor(jobId)` to `packages/db/src/jobs.ts`. It counts the `Job` rows
   with type in {SCRIPT_GENERATION, SCRIPT_WRITE, BREAKDOWN} and status in {QUEUED, RUNNING}
   created before the given job, and returns null when the job itself is running or finished.
   Then extend `apps/web/src/server/jobs.ts` and `apps/web/src/app/api/jobs/[jobId]/route.ts` so

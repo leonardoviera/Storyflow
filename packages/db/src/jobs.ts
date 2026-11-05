@@ -106,3 +106,19 @@ export async function failOrRetry(jobId: string, message: string, retryCount: nu
     await fail(jobId, message);
   }
 }
+
+const LLM_JOB_TYPES: JobType[] = ["SCRIPT_GENERATION", "SCRIPT_WRITE", "BREAKDOWN"];
+
+/** LLM jobs waiting ahead of this one (FR-032); null when it is not a queued LLM job. */
+export async function queuePositionFor(jobId: string): Promise<number | null> {
+  const prisma = getPrisma();
+  const job = await prisma.job.findUnique({ where: { id: jobId }, select: { type: true, status: true, createdAt: true } });
+  if (!job || job.status !== JobStatus.QUEUED || !LLM_JOB_TYPES.includes(job.type)) return null;
+  return prisma.job.count({
+    where: {
+      type: { in: LLM_JOB_TYPES },
+      status: { in: [JobStatus.QUEUED, JobStatus.RUNNING] },
+      createdAt: { lt: job.createdAt },
+    },
+  });
+}
