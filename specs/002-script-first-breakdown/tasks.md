@@ -51,7 +51,7 @@ This is the existing pnpm monorepo: `apps/web`, `apps/worker`,
 
 **Purpose**: dependencies and folders for the new code.
 
-- [ ] T001 Add `mammoth` with an exact version (1.x, BSD-2-Clause) to `apps/web/package.json`
+- [X] T001 Add `mammoth` with an exact version (1.x, BSD-2-Clause) to `apps/web/package.json`
   dependencies. Run `corepack pnpm install` so that `pnpm-lock.yaml` updates. Confirm that
   `mammoth` has no install scripts and makes no network calls (R8).
 - [ ] T002 [P] Create `packages/shared/src/breakdown/index.ts`, a barrel re-exporting the

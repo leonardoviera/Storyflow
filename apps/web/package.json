@@ -22,6 +22,7 @@
     "@storyflow/shared": "workspace:*",
     "@storyflow/storage": "workspace:*",
     "image-size": "2.0.4",
+    "mammoth": "1.13.0",
     "next": "15.5.29",
     "react": "19.3.1",
     "react-dom": "19.3.1",
