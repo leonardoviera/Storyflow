@@ -177,7 +177,7 @@ depends on these.
   - `lengthWarning = |total − target| > 0.2 × target`.
 
   The function must be pure and deterministic.
-- [ ] T010 [P] Write `packages/shared/src/breakdown/coverage.ts`. It exports
+- [X] T010 [P] Write `packages/shared/src/breakdown/coverage.ts`. It exports
   `checkCoverage(lineIds: string[], shots: { spokenLineIds, actionLineIds }[])`, which returns
   `{ missing: string[], duplicated: string[] }` (R1). It also exports `linesInRange(sourceLines,
   from, to)`.
