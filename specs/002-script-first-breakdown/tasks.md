@@ -396,7 +396,7 @@ verbatim.
   It lays out SettingsBar, ScriptInput, UploadReview and a **Start breakdown** button. When
   clicked, it calls POST breakdowns and navigates to `/projects/{id}/breakdown`. Keep the tab
   layout ready for the "Generate from an idea" mode added in US2.
-- [ ] T031 [P] [US1] Write `apps/web/src/components/breakdown/BreakdownProgress.tsx`, which
+- [X] T031 [P] [US1] Write `apps/web/src/components/breakdown/BreakdownProgress.tsx`, which
   polls `GET /api/jobs/{id}` (it can reuse `apps/web/src/hooks/useJob.ts`). It shows:
   - the queue position;
   - per-step status for analyze and each episode;
