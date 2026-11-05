@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { getPrisma, type Prisma } from "@storyflow/db";
+import { projectAssets } from "@storyflow/db/assets";
 import { buildCanonicalProps, mediaTypeOf } from "@storyflow/shared/props";
 import { ClipProps, TrackKind } from "@storyflow/shared/schemas";
 import { computeDurationInFrames, MAX_CLIPS_PER_TRACK, MAX_TRACKS, validateTimeline } from "@storyflow/shared/timeline";
@@ -44,9 +45,6 @@ async function loadTracks(projectId: string) {
   });
 }
 
-async function projectAssets(projectId: string) {
-  return getPrisma().asset.findMany({ where: { OR: [{ projectId }, { projectId: null }] } });
-}
 
 /** Canonical props (asset ids only) for a project — used by preview and render. */
 export async function canonicalPropsFor(projectId: string) {

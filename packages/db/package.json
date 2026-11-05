@@ -10,7 +10,8 @@
     "./reference-template": "./src/reference-template.ts",
     "./scripts": "./src/scripts.ts",
     "./asset3d": "./src/asset3d.ts",
-    "./breakdowns": "./src/breakdowns.ts"
+    "./breakdowns": "./src/breakdowns.ts",
+    "./assets": "./src/assets.ts"
   },
   "scripts": {
     "generate": "prisma generate",

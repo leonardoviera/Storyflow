@@ -28,7 +28,7 @@ export const ProjectUpdate = z
   .partial();
 
 export async function listProjects() {
-  return getPrisma().project.findMany({ where: { archivedAt: null }, orderBy: { updatedAt: "desc" } });
+  return getPrisma().project.findMany({ where: { archivedAt: null, kind: "STANDARD" }, orderBy: { updatedAt: "desc" } });
 }
 
 export async function getProject(id: string) {

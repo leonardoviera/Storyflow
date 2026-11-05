@@ -252,7 +252,7 @@ depends on these.
   each one throws "not implemented" for now. In `docker-compose.yml`, add a comment on
   `pipeline-worker` saying it MUST stay a single replica because of the LLM slot. Copy the
   change to `specs/001-local-video-platform/contracts/infra/docker-compose.yml`.
-- [ ] T018 Change project listing and lookup:
+- [X] T018 Change project listing and lookup:
   - `listProjects` in `apps/web/src/server/projects.ts` returns only `kind = STANDARD`;
   - `projectAssets` in `apps/web/src/server/timeline.ts` (and the equivalent asset lookup in
     `apps/web/src/server/renders.ts` and `apps/worker/src/handlers/video-render.ts`) includes

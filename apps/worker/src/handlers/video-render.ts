@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { makeCancelSignal } from "@remotion/renderer";
 import { getPrisma } from "@storyflow/db";
+import { projectAssets } from "@storyflow/db/assets";
 import { failOrRetry, isCancelled, JobCancelled, markRunning, reportProgress, succeed } from "@storyflow/db/jobs";
 import { QUEUE_OPTIONS, type QueuePayload } from "@storyflow/shared/queue";
 import type { WorkContext } from "@storyflow/db/queue";
@@ -28,7 +29,7 @@ export async function handleVideoRender(payload: QueuePayload<"video.render">, c
     await markRunning(jobId);
     const render = await prisma.render.findUniqueOrThrow({ where: { id: renderId } });
     const canonical = StoryCompositionProps.parse(render.inputProps);
-    const assets = await prisma.asset.findMany({ where: { projectId } });
+    const assets = await projectAssets(projectId);
     const resolved = await resolveProps(canonical, assets, "internal");
 
     const started = Date.now();
