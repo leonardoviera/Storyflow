@@ -76,6 +76,37 @@ tem imagem, variantes ("Variant Added 1/1", `+` adiciona variante), **Regenerate
   importância, completa detalhes visuais faltantes; gera uma folha por personagem (fundo branco
   4:3: frente, lado, costas + close do rosto).
 
+### 2.5 Storyboard em detalhe (revisita de 2026-11-06)
+Navegação só de leitura no projeto de exemplo da seção Short Drama (editor do episódio 1) e na
+página da skill.
+
+- **A skill confirma as 7 colunas** da seção 2.4. Ela preserva os eventos, as falas e a
+  **continuidade espacial** do roteiro, e pode criar um nó de texto por tomada no Infinite Canvas.
+  Não é uma tela própria do Short Drama.
+- **No editor do episódio, o storyboard é o próprio segmento.** O segmento começa com "Generate a
+  video composed of the following storyboards" e miniaturas dos assets citados (cenário +
+  personagens). Cada tomada tem título, duração (3–5 s no exemplo) e **um parágrafo de prosa
+  densa**, não colunas separadas. Esse parágrafo junta:
+  - enquadramento e **ângulo** (plongée em diagonal, câmera na altura dos olhos);
+  - **lente e estilo de imagem** (35 mm Panavision, luz natural suave, grão e paleta "anos 90");
+  - movimento de câmera e **quadro final** ("termina congelado em…");
+  - **marcação e olhar** (quem está onde, para onde olha) e a emoção;
+  - **continuidade com a tomada anterior** ("continuando o plano anterior…");
+  - a fala entre aspas, dentro do texto.
+- **Diretiva no nível do segmento**, no fim da lista de tomadas: sem legendas nem texto na tela,
+  manter uma BGM coerente e o som ambiente, sem silêncio.
+- **Keyframes** (opcional, por segmento): uma imagem que ilustra o segmento, com histórico de
+  versões. A versão marcada serve de referência para o vídeo.
+- **Vídeo**: um vídeo por segmento, gerado a partir das tomadas + keyframe, com histórico.
+- Não vi exportação do storyboard em si (tabela, PDF). O "Export" do episódio exporta vídeo.
+
+**Comparação com o `Shot` do StoryFlow** (`packages/shared/src/breakdown/document.ts`):
+ID, duração, enquadramento, ação, câmera e fala/som já existem. Faltam marcação/olhar, ângulo,
+quadro final e continuidade explícitos. Hoje eles só aparecem se o LLM os puser em `action`. A
+diretiva de áudio/legenda por segmento e o estilo visual do projeto (o Pavo mostra "Video Style"
+no topo do Script Outline) também não têm campo. Keyframes e vídeo dependem de geração de imagem
+e vídeo, portanto ficam nas fases B–D.
+
 ## 3. Modelo de dados observado
 
 ```
