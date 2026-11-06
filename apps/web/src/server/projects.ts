@@ -30,7 +30,26 @@ export const ProjectUpdate = z
   .partial();
 
 export async function listProjects() {
-  return getPrisma().project.findMany({ where: { archivedAt: null, kind: "STANDARD" }, orderBy: { updatedAt: "desc" } });
+  const rows = await getPrisma().project.findMany({
+    where: { archivedAt: null, kind: "STANDARD" },
+    orderBy: { updatedAt: "desc" },
+    include: {
+      script: { select: { id: true } },
+      currentBreakdown: { select: { status: true } },
+      tracks: { select: { _count: { select: { clips: true } } } },
+    },
+  });
+  // The home page badge shows the furthest stage reached: timeline, then breakdown, then script.
+  return rows.map(({ script, currentBreakdown, tracks, ...project }) => ({
+    ...project,
+    status: tracks.some((t) => t._count.clips > 0)
+      ? { stage: "TIMELINE" as const }
+      : currentBreakdown
+        ? { stage: "BREAKDOWN" as const, breakdownStatus: currentBreakdown.status }
+        : script
+          ? { stage: "SCRIPT" as const }
+          : { stage: "EMPTY" as const },
+  }));
 }
 
 export async function getProject(id: string) {

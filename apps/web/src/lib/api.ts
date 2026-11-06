@@ -43,6 +43,11 @@ export interface Project {
   updatedAt: string;
 }
 
+/** A row of GET /projects: the project plus the furthest stage it has reached. */
+export interface ProjectListItem extends Project {
+  status: { stage: "EMPTY" | "SCRIPT" | "TIMELINE" } | { stage: "BREAKDOWN"; breakdownStatus: BreakdownStatus };
+}
+
 export interface Template {
   id: string;
   slug: string;
@@ -181,6 +186,10 @@ export interface Breakdown extends BreakdownSummary {
 
 export const createProject = (input: { title: string; start: "script" | "empty_timeline"; width?: number; height?: number; fps?: number; templateSlug?: string }) =>
   api<Project>("/projects", { method: "POST", json: input });
+
+export const listProjects = () => api<ProjectListItem[]>("/projects");
+
+export const archiveProject = (projectId: string) => api<void>(`/projects/${projectId}`, { method: "DELETE" });
 
 export const getProject = (projectId: string) => api<Project>(`/projects/${projectId}`);
 

@@ -743,7 +743,7 @@ Imported characters are linked, not duplicated.
 - [ ] T073 Update `README.md`: the script-first flow, the library, and the single-replica
   `pipeline-worker` rule. Update the "LLM" section of
   `specs/001-local-video-platform/contracts/queue-jobs.md` with a pointer to the 002 queue delta.
-- [ ] T075 [P] Organize the projects home page (`apps/web/src/app/page.tsx`):
+- [X] T075 [P] Organize the projects home page (`apps/web/src/app/page.tsx`):
   - a search box that filters by title, case-insensitive;
   - a status badge on each card: Script, Breakdown (with its status) or Timeline, from a
     `status` summary that `listProjects` in `apps/web/src/server/projects.ts` adds to each row;
