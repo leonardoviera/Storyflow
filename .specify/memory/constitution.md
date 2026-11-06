@@ -1,4 +1,30 @@
 <!--
+SYNC IMPACT REPORT (amendment 2026-11-06)
+- Version change: 2.0.0 → 3.0.0 (MAJOR: Principle I's private-network exception widens from the
+  LLM backend to every LiteLLM generation backend; governance makes any relaxation of I MAJOR)
+- Proposal/rationale: spec 003 (storyboard frames) needs image generation. The owner's direction
+  is that every AI call goes through LiteLLM, including image (and later voice/video), even
+  before a model is provisioned behind it. Cloud/hosted generation APIs remain forbidden.
+- Modified principles:
+  - I. Strict Local Execution: "LLM inference" → "AI inference (text, image, and later voice or
+    video)"; the private-network exception covers any LiteLLM backend, not only the LLM one.
+  - III. Resource Throttling: "one LLM request in flight" → one request in flight per LiteLLM
+    alias.
+  - V. Decoupled, Containerized Architecture: the outside-compose exception covers self-hosted AI
+    model servers, still reachable only through LiteLLM.
+  - Local Stack Constraints / LiteLLM: LiteLLM is the only entry point for every AI modality; the
+    app may request only declared aliases (`local-llm`, `local-image`); an alias may have no model
+    yet and the app MUST degrade cleanly.
+- Added sections: none
+- Removed sections: none
+- Migration (follow-up, outside this amendment):
+  - scripts/lint-config.mjs: check IMAGE_MODEL / IMAGE_API_BASE like LLM_MODEL / LLM_API_BASE.
+  - .env.example and litellm_config.yaml: document and declare the `local-image` alias.
+  - specs/003-storyboard-shot-direction/spec.md: the "Constitution amendment needed" assumption is
+    now satisfied by v3.0.0.
+- Deferred TODOs: none
+-->
+<!--
 SYNC IMPACT REPORT (amendment 2026-11-04)
 - Version change: 1.0.0 → 2.0.0 (MAJOR: relaxes Principle I; governance makes any relaxation MAJOR)
 - Proposal/rationale: the owner runs their own LLM server on their private network and does not
@@ -50,16 +76,17 @@ SYNC IMPACT REPORT (original)
 ### I. Strict Local Execution (NON-NEGOTIABLE)
 
 All asset storage, 3D generation, and video rendering MUST run on the host machine or in
-containers on it. LLM inference MUST run on the host or on a self-hosted server on the owner's
-private network. The platform MUST be fully functional with the internet uplink disconnected
+containers on it. AI inference (text, image, and later voice or video) MUST run on the host or on
+a self-hosted server on the owner's private network. The platform MUST be fully functional with the internet uplink disconnected
 once images, models, and dependencies have been provisioned.
 
 - No runtime dependency on cloud rendering (e.g., AWS Lambda, GCP Cloud Run, Remotion Lambda),
-  hosted LLM APIs (OpenAI, Anthropic, Gemini, etc.), hosted 3D generators, or remote asset libraries.
+  hosted AI APIs for text, image, voice or video (OpenAI, Anthropic, Gemini, etc.), hosted 3D
+  generators, or remote asset libraries.
 - No code path MAY read a cloud provider API key or call a non-local endpoint. Every outbound URL in
   application config MUST resolve to `localhost`, `127.0.0.1`, `host.docker.internal`, or a
-  docker-compose service name. The single exception is LiteLLM's LLM backend, which MAY be a
-  self-hosted server at a private network address (RFC 1918, link-local, `.local`, `.lan`,
+  docker-compose service name. The single exception is LiteLLM's model backends, which MAY be
+  self-hosted servers at a private network address (RFC 1918, link-local, `.local`, `.lan`,
   `.home.arpa`, or a single-label LAN name); public hosts are forbidden.
 - Telemetry, analytics, and auto-update checks MUST be disabled in every component
   (e.g., `NEXT_TELEMETRY_DISABLED=1`, LiteLLM telemetry off, Blender MCP telemetry off).
@@ -87,8 +114,8 @@ Rationale: Determinism makes previews trustworthy, renders reproducible, and reg
   `renderMedia`), and the render queue MUST process at most one render job at a time unless a
   configured limit explicitly allows more within the same 4-thread budget.
 - Blender workloads MUST have configured container CPU/memory limits. The application MUST keep
-  at most one LLM request in flight (queue concurrency 1); the LLM server's own resource limits
-  are the operator's responsibility because it runs outside compose. Long-running jobs MUST run
+  at most one request in flight per LiteLLM alias (queue concurrency 1 per alias); the model
+  servers' own resource limits are the operator's responsibility because they run outside compose. Long-running jobs MUST run
   through the async queue, never in request handlers.
 
 Rationale: This runs on a creator's workstation; the host MUST stay responsive during processing.
@@ -111,9 +138,9 @@ Rationale: A single, auditable tool interface keeps 3D generation swappable, obs
   rendering workers MUST run as isolated services defined in `docker-compose.yml`.
 - Services MUST communicate only through declared network interfaces (HTTP, S3 API, DB/queue
   protocols); shared filesystem coupling between services is forbidden except declared volumes.
-- The sole allowed component outside compose is the self-hosted LLM server (on the host or the
-  private network), which MUST be reachable only through LiteLLM; no application service MAY call
-  it directly.
+- The only allowed components outside compose are self-hosted AI model servers (on the host or
+  the private network), which MUST be reachable only through LiteLLM; no application service MAY
+  call them directly.
 - `docker compose up -d` from a clean checkout (with provisioned images/models) MUST bring up the
   full stack.
 
@@ -130,14 +157,20 @@ Rationale: Isolation keeps each component replaceable and makes the whole system
   are forbidden in compositions.
 
 **LiteLLM**
-- LiteLLM is the only LLM entry point. Application code MUST target the LiteLLM base URL and
-  MUST NOT import provider SDKs to call providers directly.
+- LiteLLM is the only entry point for every AI call: text, image, and later voice or video.
+  Application code MUST target the LiteLLM base URL and MUST NOT import provider SDKs or call a
+  model server directly. This holds even when no model is provisioned for a modality yet: the
+  feature is built against its LiteLLM alias, not dropped or routed elsewhere.
 - `litellm_config.yaml` MUST contain only self-hosted backends (on the host or the private
   network) and local MCP servers. Any cloud provider or cloud API key is a constitution violation.
-- The backend (provider/model, private `api_base`, the server's own key) MUST come from `.env`,
-  and the config lint MUST reject cloud providers and public `api_base` hosts.
-- The app MUST request only the LiteLLM alias `local-llm`; which model serves it is documented
-  in `.env.example`.
+- Each backend (provider/model, private `api_base`, the server's own key) MUST come from `.env`,
+  and the config lint MUST reject cloud providers and public `api_base` hosts for every alias.
+- The app MUST request only declared LiteLLM aliases: `local-llm` for text and `local-image` for
+  image generation. A new modality needs a new alias declared here. Which model serves each alias
+  is documented in `.env.example`.
+- An alias MAY have no model behind it. When LiteLLM reports the model missing or cannot be
+  reached, the app MUST show a clear "unavailable" state for that action and every feature that
+  does not need it MUST keep working.
 
 **MinIO**
 - MinIO is the single system of record for binary assets (images, narration, 3D outputs, MP4s).
@@ -166,7 +199,8 @@ Rationale: Isolation keeps each component replaceable and makes the whole system
   or 3D: with outbound network blocked, the stack starts and a reference composition renders.
 - Composition changes MUST include a deterministic render test (same `inputProps` → identical
   frame hashes for sampled frames).
-- A config lint (script or CI check) MUST reject: cloud model entries in `litellm_config.yaml`,
+- A config lint (script or CI check) MUST reject: cloud model entries for any alias in
+  `litellm_config.yaml`,
   floating image tags, non-loopback port bindings, and hardcoded credentials in source.
 - AI agents (e.g., Claude Code) working in this repo MUST NOT introduce cloud services,
   external API calls, or runtime downloads, even as optional fallbacks.
@@ -184,4 +218,4 @@ Rationale: Isolation keeps each component replaceable and makes the whole system
   Stack Constraints. Exceptions MUST be documented in the plan's Complexity Tracking with
   justification and are never permitted for Principle I.
 
-**Version**: 2.0.0 | **Ratified**: 2026-11-04 | **Last Amended**: 2026-11-04
+**Version**: 3.0.0 | **Ratified**: 2026-11-04 | **Last Amended**: 2026-11-06

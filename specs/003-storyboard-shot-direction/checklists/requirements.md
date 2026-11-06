@@ -38,5 +38,4 @@
 - Decisions taken as defaults that `/speckit-clarify` may revisit: the fixed list of 7 camera
   angles (FR-002); subtitles off removing visible subtitle clips, which narrows SC-006 of feature
   002 (FR-012); the brief being built from data, not by the language model (FR-013).
-- Blocker for `/speckit-plan`: constitution v2.0.0 allows only the `local-llm` alias; the image
-  alias of FR-019 needs an amendment (see Assumptions).
+- The image alias of FR-019 (`local-image`) is allowed by constitution v3.0.0 (2026-11-06).

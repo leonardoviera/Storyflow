@@ -328,10 +328,9 @@ nothing else breaks.
   a model is provisioned behind it yet. No image model is installed today; the feature is built and
   tested against the image alias anyway, and the unavailable path (FR-020) is what runs until one
   is added on the LAN server.
-- **Constitution amendment needed.** Constitution v2.0.0 allows the app to request only the
-  `local-llm` alias. A dedicated, self-hosted image alias (for example `local-image`) needs an
-  amendment before planning; it stays within Principle I, since the backend remains on the private
-  network and reached only through LiteLLM.
+- **Constitution v3.0.0.** The image alias is `local-image`, declared by the 2026-11-06 amendment
+  alongside `local-llm`. Its backend must be self-hosted on the host or the private network and
+  reached only through LiteLLM.
 - **The brief is the frame prompt.** The same brief text feeds frame generation now and the video
   phase later, so its content is kept stable.
 - **Spreadsheet format.** A CSV file encoded so that accents and non-Latin scripts open correctly
